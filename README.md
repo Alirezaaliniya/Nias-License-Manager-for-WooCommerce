@@ -14,53 +14,448 @@ A professional PHP library for seamless integration with License Manager for Woo
 
 ## 🚀 Quick Start | شروع سریع
 
-### Installation | نصب
+# NLMW Quick Start Guide
+# راهنمای شروع سریع NLMW
 
-```bash
-# Download files to your plugin
-# دانلود فایل‌ها در افزونه خود
+## 🚀 Installation in 3 Minutes | نصب در 3 دقیقه
+
+### Step 1: Copy Files | مرحله 1: کپی فایل‌ها
+
+```
 your-plugin/
 ├── includes/
-│   ├── license/
-│   │   ├── class-license-manager-client.php
-│   │   ├── class-license-settings-page.php
-│   │   ├── class-license-cron-handler.php
-│   │   └── translations.php
+│   └── license/
+│       ├── class-license-manager-client.php
+│       ├── class-license-settings-page.php
+│       ├── class-license-cron-handler.php
+│       └── translations.php
 ```
 
-### Basic Setup | راه‌اندازی پایه
+### Step 2: Include in Your Plugin | مرحله 2: اضافه کردن به افزونه
 
 ```php
-// 1. Include files | اضافه کردن فایل‌ها
-require_once 'includes/license/class-license-manager-client.php';
-require_once 'includes/license/class-license-settings-page.php';
-require_once 'includes/license/class-license-cron-handler.php';
+<?php
+/**
+ * Plugin Name: My Awesome Plugin
+ * Version: 1.0.0
+ */
 
-// 2. Initialize settings page | مقداردهی اولیه صفحه تنظیمات
-new Nias_License_Settings_Page( 'My Plugin', 'my-plugin' );
+// Include NLMW files
+require_once plugin_dir_path( __FILE__ ) . 'includes/license/class-license-manager-client.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/license/class-license-settings-page.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/license/class-license-cron-handler.php';
 
-// 3. Initialize cron (daily checks) | مقداردهی اولیه کرون (بررسی روزانه)
-new Nias_License_Cron_Handler( 'my-plugin', DAY_IN_SECONDS );
+// Initialize on plugins_loaded
+add_action( 'plugins_loaded', function() {
+    
+    // 1. Settings Page
+    new Nias_License_Settings_Page(
+        'My Awesome Plugin',  // Your plugin name
+        'my-awesome-plugin'   // Your plugin slug
+    );
+    
+    // 2. Cron Handler (check daily)
+    new Nias_License_Cron_Handler(
+        'my-awesome-plugin',  // Your plugin slug
+        DAY_IN_SECONDS        // Check interval
+    );
+    
+    // 3. License Client with Product IDs
+    $client = new Nias_License_Manager_Client(
+        get_option( 'nias_my-awesome-plugin_store_url' ),
+        get_option( 'nias_my-awesome-plugin_consumer_key' ),
+        get_option( 'nias_my-awesome-plugin_consumer_secret' ),
+        get_option( 'nias_my-awesome-plugin_product_ids', array() ),  // ← Product IDs
+        get_option( 'nias_my-awesome-plugin_cache_days', 5 )
+    );
+    
+    // 4. Check License
+    $license_key = get_option( 'nias_my-awesome-plugin_license_key' );
+    
+    if ( $client->nias_is_license_valid( $license_key ) ) {
+        // ✅ License valid - load premium features
+        require_once 'includes/premium-features.php';
+    } else {
+        // ❌ License invalid - show notice
+        add_action( 'admin_notices', function() {
+            echo '<div class="notice notice-warning"><p>';
+            echo 'Please activate your license to use premium features.';
+            echo '</p></div>';
+        });
+    }
+});
+```
 
-// 4. Check license before features | بررسی لایسنس قبل از ویژگی‌ها
+---
+
+## 📦 Understanding Product IDs | درک شناسه محصولات
+
+### Why Product IDs? | چرا شناسه محصولات؟
+
+اگر **چند محصول** با لایسنس در فروشگاه دارید:
+
+```
+Your WooCommerce Store:
+├── 📦 Product ID: 5735 → "SEO Plugin Pro"
+├── 📦 Product ID: 5736 → "Analytics Plugin"
+└── 📦 Product ID: 5737 → "Backup Plugin"
+```
+
+هر پلاگین باید **فقط** لایسنس مربوط به خودش را قبول کند!
+
+### Example Scenario | مثال عملی
+
+**Customer buys all 3 plugins:**
+```
+License KEY-111 → Product 5735 (SEO Plugin)
+License KEY-222 → Product 5736 (Analytics)
+License KEY-333 → Product 5737 (Backup)
+```
+
+**SEO Plugin** با این تنظیمات:
+```php
 $client = new Nias_License_Manager_Client(
-    get_option( 'nias_my-plugin_store_url' ),
-    get_option( 'nias_my-plugin_consumer_key' ),
-    get_option( 'nias_my-plugin_consumer_secret' )
+    'https://yourstore.com',
+    'ck_xxxxx',
+    'cs_xxxxx',
+    array( 5735 ),  // ← Only accept Product ID 5735
+    5
 );
+```
 
-$license_key = get_option( 'nias_my-plugin_license_key' );
+حالا:
+- ✅ `KEY-111` با Product ID 5735 → **Valid** (قبول می‌شود)
+- ❌ `KEY-222` با Product ID 5736 → **Invalid** (رد می‌شود)
+- ❌ `KEY-333` با Product ID 5737 → **Invalid** (رد می‌شود)
 
-if ( $client->nias_is_license_valid( $license_key ) ) {
-    // ✅ License valid - enable features
-    // ✅ لایسنس معتبر - فعال‌سازی ویژگی‌ها
-} else {
-    // ❌ License invalid - restrict features
-    // ❌ لایسنس نامعتبر - محدودسازی ویژگی‌ها
+---
+
+## 🎯 Configuration Guide | راهنمای پیکربندی
+
+### In WordPress Admin | در پنل مدیریت وردپرس
+
+1. Go to: **Settings → Your Plugin License**
+   
+2. **API Configuration Section:**
+
+| Field | Value | Example |
+|-------|-------|---------|
+| Store URL | Your store address | `https://nias.ir` |
+| Consumer Key | From License Manager | `ck_3b9884854290942fbdd...` |
+| Consumer Secret | From License Manager | `cs_07a8aae132a99c7b05d...` |
+| **Product IDs** | **Your product IDs** | **`5735, 5736`** ← NEW! |
+| Cache Duration | Days to cache | `5` (default) |
+
+3. **Click "Save API Settings"**
+
+4. **License Activation Section:**
+   - Enter License Key
+   - Click "Activate License"
+
+---
+
+## 💡 Multiple Products Support | پشتیبانی چند محصول
+
+### One Plugin = One Product | یک افزونه = یک محصول
+
+```php
+new Nias_License_Manager_Client(
+    $store_url,
+    $consumer_key,
+    $consumer_secret,
+    array( 5735 ),  // Single product
+    5
+);
+```
+
+### One Plugin = Multiple Products | یک افزونه = چند محصول
+
+مثلاً اگر یک Bundle دارید:
+
+```php
+new Nias_License_Manager_Client(
+    $store_url,
+    $consumer_key,
+    $consumer_secret,
+    array( 5735, 5736, 5737 ),  // Multiple products
+    5
+);
+```
+
+این لایسنس‌های **هر سه محصول** را قبول می‌کند!
+
+### Accept Any Product | قبول هر محصول
+
+```php
+new Nias_License_Manager_Client(
+    $store_url,
+    $consumer_key,
+    $consumer_secret,
+    array(),  // Empty = accept any product
+    5
+);
+```
+
+---
+
+## 🔍 How Validation Works | نحوه اعتبارسنجی
+
+```
+┌─────────────────────────────────────────┐
+│ User enters License Key                 │
+└────────────────┬────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────┐
+│ Plugin calls API:                       │
+│ nias_validate_license( $license_key )   │
+└────────────────┬────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────┐
+│ License Manager API returns:            │
+│ {                                       │
+│   "licenseKey": "KEY-111",             │
+│   "productId": 5735,                   │
+│   "status": 2,                         │
+│   "expiresAt": "2025-12-31",          │
+│   ...                                  │
+│ }                                      │
+└────────────────┬────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────┐
+│ NLMW checks:                            │
+│ ✓ Is status = 2? (active)             │
+│ ✓ Is productId in allowed list?       │ ← NEW CHECK!
+│ ✓ Is not expired?                      │
+│ ✓ Has remaining activations?           │
+└────────────────┬────────────────────────┘
+                 │
+        ┌────────┴────────┐
+        │                 │
+        ▼                 ▼
+    ✅ Valid          ❌ Invalid
+```
+
+---
+
+## ⚙️ Advanced Configuration | پیکربندی پیشرفته
+
+### Dynamic Product IDs | شناسه محصولات پویا
+
+```php
+// Get from database or config
+$my_product_ids = get_option( 'my_plugin_product_ids', array( 5735 ) );
+
+$client = new Nias_License_Manager_Client(
+    $store_url,
+    $consumer_key,
+    $consumer_secret,
+    $my_product_ids,
+    5
+);
+```
+
+### Update Product IDs Later | به‌روزرسانی شناسه محصولات بعداً
+
+```php
+$client->nias_set_product_ids( array( 5735, 5736 ) );
+```
+
+### Check Current Product IDs | بررسی شناسه محصولات فعلی
+
+```php
+$current_ids = $client->nias_get_product_ids();
+print_r( $current_ids );
+// Output: Array( [0] => 5735, [1] => 5736 )
+```
+
+---
+
+## 🛡️ Error Handling | مدیریت خطا
+
+### Product ID Mismatch | عدم تطابق شناسه محصول
+
+```php
+$result = $client->nias_validate_license( 'WRONG-PRODUCT-KEY' );
+
+if ( ! $result ) {
+    $error = $client->nias_get_last_error();
+    echo $error;
+    // Output: "License is not valid for this product. 
+    //          Expected product ID: 5735, Got: 5736"
+}
+```
+
+### Handle Different Errors | مدیریت خطاهای مختلف
+
+```php
+$result = $client->nias_activate_license( $license_key );
+
+if ( ! $result ) {
+    $error = $client->nias_get_last_error();
+    
+    if ( strpos( $error, 'product' ) !== false ) {
+        echo 'Wrong product license!';
+    } elseif ( strpos( $error, 'expired' ) !== false ) {
+        echo 'License has expired!';
+    } elseif ( strpos( $error, 'activation limit' ) !== false ) {
+        echo 'Too many activations!';
+    } else {
+        echo 'Unknown error: ' . $error;
+    }
 }
 ```
 
 ---
+
+## 📊 Real-World Examples | مثال‌های واقعی
+
+### Example 1: Single Product Plugin | پلاگین تک محصول
+
+```php
+// My SEO Plugin
+$client = new Nias_License_Manager_Client(
+    'https://mystore.com',
+    'ck_xxxxx',
+    'cs_xxxxx',
+    array( 5735 ),  // Only SEO Plugin licenses
+    5
+);
+```
+
+### Example 2: Plugin Suite | مجموعه پلاگین
+
+```php
+// My Marketing Suite (accepts 3 different products)
+$client = new Nias_License_Manager_Client(
+    'https://mystore.com',
+    'ck_xxxxx',
+    'cs_xxxxx',
+    array( 5735, 5736, 5737 ),  // SEO, Analytics, Social
+    5
+);
+```
+
+### Example 3: Development Testing | تست توسعه
+
+```php
+// Accept any product during development
+if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+    $product_ids = array();  // Accept all
+} else {
+    $product_ids = array( 5735 );  // Production only
+}
+
+$client = new Nias_License_Manager_Client(
+    $store_url,
+    $consumer_key,
+    $consumer_secret,
+    $product_ids,
+    5
+);
+```
+
+---
+
+## 🎓 Best Practices | بهترین شیوه‌ها
+
+### ✅ DO | انجام دهید
+
+```php
+// ✅ Store product IDs in constants
+define( 'MY_PLUGIN_PRODUCT_IDS', array( 5735, 5736 ) );
+
+// ✅ Validate on plugin load
+add_action( 'plugins_loaded', 'check_license' );
+
+// ✅ Cache results for performance
+$cache_days = 5; // Good default
+
+// ✅ Show clear error messages
+if ( ! $valid ) {
+    echo 'Wrong product license. Please use a license for ' . MY_PLUGIN_NAME;
+}
+```
+
+### ❌ DON'T | انجام ندهید
+
+```php
+// ❌ Hardcode credentials
+$client = new Nias_License_Manager_Client(
+    'https://mystore.com',  // Bad! Use options
+    'ck_hardcoded',          // Bad! Security risk
+    'cs_hardcoded',          // Bad! Security risk
+    array( 5735 ),
+    5
+);
+
+// ❌ Check on every page load
+// Use caching and cron instead!
+
+// ❌ Empty product IDs for released plugin
+$product_ids = array();  // Anyone can use any license!
+```
+
+---
+
+## 🐛 Common Issues | مشکلات رایج
+
+### Issue 1: Wrong Product Error | خطای محصول اشتباه
+
+**Problem:**
+```
+License is not valid for this product. Expected: 5735, Got: 5736
+```
+
+**Solution:**
+```php
+// Check your Product ID in WooCommerce:
+// Products → Edit Product → Get ID from URL
+// https://store.com/wp-admin/post.php?post=5735&action=edit
+//                                          ^^^^
+
+// Update in code:
+$client->nias_set_product_ids( array( 5735 ) );  // Correct ID
+```
+
+### Issue 2: License Works Everywhere | لایسنس همه جا کار می‌کند
+
+**Problem:**
+```php
+$product_ids = array();  // Empty!
+```
+
+**Solution:**
+```php
+$product_ids = array( 5735 );  // Specify your product
+```
+
+### Issue 3: Multiple Plugins Same Store | چند پلاگین یک فروشگاه
+
+**Problem:**
+All plugins accept each other's licenses
+
+**Solution:**
+```php
+// Plugin A
+$client_a = new Nias_License_Manager_Client(
+    $store_url, $key, $secret,
+    array( 5735 ),  // Only Product A
+    5
+);
+
+// Plugin B
+$client_b = new Nias_License_Manager_Client(
+    $store_url, $key, $secret,
+    array( 5736 ),  // Only Product B
+    5
+);
+```
+
+---
+
 
 ## ✨ Features | ویژگی‌ها
 
