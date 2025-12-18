@@ -366,6 +366,4 @@ This project is licensed under the GPL-2.0+ License.
 **⭐ If this library helped you, please give it a star!**
 
 **⭐ اگر این کتابخانه به شما کمک کرد، لطفا یک ستاره بدهید!**
-
-**Happy Coding! 🎉**  
-**برنامه‌نویسی خوبی داشته باشید! 🎉**
+*
