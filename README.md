@@ -291,7 +291,7 @@ if ( ! current_user_can( 'manage_options' ) ) {
 
 ## 📝 Changelog | تغییرات
 
-### v1.0.0 (2024-12-18)
+### v1.0.0
 
 **Added:**
 - ✨ Initial release
