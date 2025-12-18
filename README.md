@@ -315,14 +315,6 @@ Contributions are welcome! Please:
 4. Push to the branch
 5. Open a Pull Request
 
-### فارسی:
-مشارکت شما خوشامد است! لطفا:
-1. مخزن را Fork کنید
-2. یک branch ویژگی ایجاد کنید
-3. تغییرات را commit کنید
-4. به branch خود push کنید
-5. یک Pull Request باز کنید
-
 ---
 
 ## 📧 Support | پشتیبانی
@@ -349,10 +341,6 @@ This project is licensed under the GPL-2.0+ License.
 - Created by Nias Team
 - With ❤️ for WordPress Community
 
-### فارسی:
-- ساخته شده برای [License Manager for WooCommerce](https://licensemanager.at/)
-- ایجاد شده توسط تیم نیاس
-- با ❤️ برای جامعه وردپرس
 
 ---
 
