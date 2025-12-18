@@ -94,11 +94,11 @@ if ( $client->nias_is_license_valid( $license_key ) ) {
 
 ### Quick Links | لینک‌های سریع
 
-- [Installation Guide](#installation) | راهنمای نصب
-- [API Reference](NLMW-Documentation.md#api-reference) | مرجع API
-- [Usage Examples](NLMW-Documentation.md#usage) | نمونه‌های استفاده
-- [Troubleshooting](NLMW-Documentation.md#troubleshooting) | رفع مشکلات
-- [FAQ](NLMW-Documentation.md#faq) | سوالات متداول
+- [Installation Guide](#installation--نصب) | راهنمای نصب
+- [API Reference](NLMW-Documentation.md#-api-reference--مرجع-api) | مرجع API
+- [Usage Examples](NLMW-Documentation.md#-usage--استفاده) | نمونه‌های استفاده
+- [Troubleshooting](NLMW-Documentation.md#-troubleshooting--رفع-مشکلات) | رفع مشکلات
+- [FAQ](NLMW-Documentation.md#-faq--سوالات-متداول) | سوالات متداول
 
 ---
 
