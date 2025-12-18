@@ -827,4 +827,563 @@ class My_Awesome_Plugin {
     
     public function check_license() {
         $license_key = get_option( 'nias_my-awesome-plugin_license_key' );
-        $status = get_option( 'nias_my-awesome-plugin_license_
+        $status = get_option( 'nias_my-awesome-plugin_license_status' );
+        
+        if ( $status !== 'active' ) {
+            // Disable premium features
+            add_action( 'admin_notices', function() {
+                echo '<div class="notice notice-warning">';
+                echo '<p>Please activate your license to use premium features.</p>';
+                echo '</div>';
+            });
+            return;
+        }
+        
+        // Enable premium features
+        $this->load_premium_features();
+    }
+    
+    private function load_premium_features() {
+        // Your premium features here
+    }
+}
+
+// Initialize plugin
+new My_Awesome_Plugin();
+```
+
+---
+
+## 🔒 Security Recommendations | توصیه‌های امنیتی
+
+### 1. Validate User Input | اعتبارسنجی ورودی کاربر
+
+```php
+// Always sanitize
+$license_key = sanitize_text_field( $_POST['license_key'] );
+
+// Validate format
+if ( ! preg_match( '/^[A-Z0-9-]+$/', $license_key ) ) {
+    wp_die( 'Invalid license key format' );
+}
+```
+
+### 2. Check Capabilities | بررسی قابلیت‌ها
+
+```php
+if ( ! current_user_can( 'manage_options' ) ) {
+    wp_die( 'Unauthorized access' );
+}
+```
+
+### 3. Use Nonces | استفاده از Nonce
+
+```php
+// Create nonce
+wp_nonce_field( 'nias_license_action', 'nias_license_nonce' );
+
+// Verify nonce
+if ( ! check_admin_referer( 'nias_license_action', 'nias_license_nonce' ) ) {
+    wp_die( 'Security check failed' );
+}
+```
+
+### 4. Secure API Credentials | ایمن‌سازی اطلاعات API
+
+```php
+// Option 1: Use constants in wp-config.php
+define( 'NIAS_STORE_URL', 'https://yourstore.com' );
+define( 'NIAS_CONSUMER_KEY', 'ck_xxxxx' );
+define( 'NIAS_CONSUMER_SECRET', 'cs_xxxxx' );
+
+// Option 2: Encrypt sensitive data
+function nias_encrypt( $data ) {
+    $key = wp_salt( 'auth' );
+    return base64_encode( openssl_encrypt( $data, 'AES-128-CBC', $key, 0, substr( $key, 0, 16 ) ) );
+}
+
+function nias_decrypt( $data ) {
+    $key = wp_salt( 'auth' );
+    return openssl_decrypt( base64_decode( $data ), 'AES-128-CBC', $key, 0, substr( $key, 0, 16 ) );
+}
+```
+
+### 5. Rate Limiting | محدودسازی نرخ
+
+```php
+function nias_check_rate_limit( $action ) {
+    $transient_key = 'nias_rate_limit_' . $action . '_' . get_current_user_id();
+    $attempts = get_transient( $transient_key );
+    
+    if ( $attempts && $attempts >= 5 ) {
+        wp_die( 'Too many attempts. Please try again later.' );
+    }
+    
+    set_transient( $transient_key, ( $attempts ? $attempts + 1 : 1 ), HOUR_IN_SECONDS );
+}
+
+// Usage
+nias_check_rate_limit( 'license_activation' );
+```
+
+---
+
+## 🎨 Customization Examples | نمونه‌های سفارشی‌سازی
+
+### Custom Admin Notice Styling | استایل سفارشی اعلان‌های مدیریت
+
+```php
+add_action( 'admin_head', function() {
+    ?>
+    <style>
+        .nias-license-notice {
+            border-left: 4px solid #00a0d2;
+            background: #fff;
+            padding: 15px;
+            margin: 15px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .nias-license-notice.error {
+            border-color: #dc3232;
+        }
+        .nias-license-notice.success {
+            border-color: #46b450;
+        }
+    </style>
+    <?php
+});
+```
+
+### Custom Email Template | قالب سفارشی ایمیل
+
+```php
+add_filter( 'nias_my_plugin_expiry_email_body', function( $message, $days_left ) {
+    $html = '
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #ff6600;">License Expiring Soon!</h2>
+        <p>Your license will expire in <strong>' . $days_left . ' days</strong>.</p>
+        <p>Renew now to continue receiving:</p>
+        <ul>
+            <li>✅ Updates and bug fixes</li>
+            <li>✅ Premium support</li>
+            <li>✅ New features</li>
+        </ul>
+        <a href="https://yourstore.com/renew" style="display: inline-block; background: #ff6600; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Renew Now</a>
+    </div>
+    ';
+    return $html;
+}, 10, 2 );
+```
+
+### Dashboard Widget | ویجت داشبورد
+
+```php
+add_action( 'wp_dashboard_setup', function() {
+    wp_add_dashboard_widget(
+        'nias_license_widget',
+        'Plugin License Status',
+        'nias_render_license_widget'
+    );
+});
+
+function nias_render_license_widget() {
+    $status = get_option( 'nias_my_plugin_license_status' );
+    $data = get_option( 'nias_my_plugin_license_data' );
+    
+    if ( $status === 'active' && $data ) {
+        $expiry = date( 'F j, Y', strtotime( $data['expiresAt'] ) );
+        $days_left = ceil( ( strtotime( $data['expiresAt'] ) - time() ) / DAY_IN_SECONDS );
+        
+        echo '<div style="text-align: center; padding: 20px;">';
+        echo '<div style="font-size: 48px; color: #46b450;">✓</div>';
+        echo '<h3 style="margin: 10px 0;">License Active</h3>';
+        echo '<p>Expires: <strong>' . $expiry . '</strong></p>';
+        echo '<p>(<strong>' . $days_left . '</strong> days remaining)</p>';
+        echo '</div>';
+    } else {
+        echo '<div style="text-align: center; padding: 20px;">';
+        echo '<div style="font-size: 48px; color: #dc3232;">✗</div>';
+        echo '<h3 style="margin: 10px 0;">License Inactive</h3>';
+        echo '<a href="' . admin_url( 'options-general.php?page=my-plugin-license' ) . '" class="button button-primary">Activate Now</a>';
+        echo '</div>';
+    }
+}
+```
+
+### Custom Validation Logic | منطق اعتبارسنجی سفارشی
+
+```php
+add_filter( 'nias_my_plugin_validate_license', function( $is_valid, $license_data ) {
+    // Add custom validation rules
+    
+    // Example: Check if license is for correct product
+    if ( $license_data['productId'] !== 123 ) {
+        return false;
+    }
+    
+    // Example: Check if user has specific role
+    $user = wp_get_current_user();
+    if ( ! in_array( 'administrator', $user->roles ) ) {
+        return false;
+    }
+    
+    return $is_valid;
+}, 10, 2 );
+```
+
+---
+
+## 📊 Monitoring & Analytics | نظارت و تحلیل
+
+### Track License Usage | پیگیری استفاده از لایسنس
+
+```php
+function nias_track_license_event( $event_type, $license_key, $details = array() ) {
+    global $wpdb;
+    
+    $table_name = $wpdb->prefix . 'nias_license_events';
+    
+    $wpdb->insert(
+        $table_name,
+        array(
+            'event_type' => $event_type,
+            'license_key' => $license_key,
+            'details' => wp_json_encode( $details ),
+            'user_id' => get_current_user_id(),
+            'ip_address' => $_SERVER['REMOTE_ADDR'],
+            'created_at' => current_time( 'mysql' )
+        )
+    );
+}
+
+// Usage
+nias_track_license_event( 'activation', $license_key, array(
+    'server' => $_SERVER['SERVER_NAME'],
+    'php_version' => PHP_VERSION,
+    'wp_version' => get_bloginfo( 'version' )
+));
+```
+
+### Generate Usage Reports | تولید گزارش‌های استفاده
+
+```php
+function nias_get_license_report( $license_key ) {
+    $client = new Nias_License_Manager_Client( /* ... */ );
+    $data = $client->nias_validate_license( $license_key );
+    
+    $report = array(
+        'key' => $license_key,
+        'status' => $data['status'] == 2 ? 'Active' : 'Inactive',
+        'product' => get_the_title( $data['productId'] ),
+        'activations' => $data['timesActivated'] . '/' . $data['timesActivatedMax'],
+        'expires' => $data['expiresAt'],
+        'days_remaining' => ceil( ( strtotime( $data['expiresAt'] ) - time() ) / DAY_IN_SECONDS )
+    );
+    
+    return $report;
+}
+```
+
+---
+
+## 🧪 Testing | تست
+
+### Unit Testing Example | نمونه تست واحد
+
+```php
+class NLMW_Test extends WP_UnitTestCase {
+    
+    private $client;
+    private $test_license = 'TEST-LICENSE-KEY';
+    
+    public function setUp() {
+        parent::setUp();
+        
+        $this->client = new Nias_License_Manager_Client(
+            'https://test-store.com',
+            'ck_test',
+            'cs_test'
+        );
+    }
+    
+    public function test_validate_license() {
+        $result = $this->client->nias_validate_license( $this->test_license );
+        
+        $this->assertIsArray( $result );
+        $this->assertArrayHasKey( 'status', $result );
+        $this->assertEquals( 2, $result['status'] );
+    }
+    
+    public function test_activate_license() {
+        $result = $this->client->nias_activate_license( $this->test_license );
+        
+        $this->assertIsArray( $result );
+        $this->assertArrayHasKey( 'activationData', $result );
+    }
+    
+    public function test_is_license_valid() {
+        $is_valid = $this->client->nias_is_license_valid( $this->test_license );
+        
+        $this->assertTrue( $is_valid );
+    }
+    
+    public function test_invalid_license() {
+        $result = $this->client->nias_validate_license( 'INVALID-KEY' );
+        
+        $this->assertFalse( $result );
+    }
+}
+```
+
+### Manual Testing Checklist | چک‌لیست تست دستی
+
+- [ ] Install and activate plugin
+- [ ] Configure API credentials
+- [ ] Activate valid license key
+- [ ] Check license status in admin
+- [ ] Deactivate license
+- [ ] Try activating expired license
+- [ ] Test with invalid license key
+- [ ] Verify cron job scheduling
+- [ ] Check email notifications
+- [ ] Test manual license check
+- [ ] Verify activation limits
+- [ ] Test license expiration warning
+- [ ] Check error handling
+- [ ] Verify logs are working
+- [ ] Test in different user roles
+
+---
+
+## 🌐 Multilingual Support | پشتیبانی چندزبانه
+
+### Adding New Languages | افزودن زبان‌های جدید
+
+1. **Copy translations.php** | کپی فایل ترجمه‌ها
+
+```bash
+cp translations.php translations-de.php
+```
+
+2. **Edit translations** | ویرایش ترجمه‌ها
+
+```php
+// translations-de.php
+return array(
+    'License' => 'Lizenz',
+    'Active' => 'Aktiv',
+    'Inactive' => 'Inaktiv',
+    // ...
+);
+```
+
+3. **Load translations** | بارگذاری ترجمه‌ها
+
+```php
+function nias_load_translations() {
+    $locale = get_locale();
+    $translations_file = plugin_dir_path( __FILE__ ) . 'translations-' . $locale . '.php';
+    
+    if ( file_exists( $translations_file ) ) {
+        return include $translations_file;
+    }
+    
+    return include plugin_dir_path( __FILE__ ) . 'translations.php';
+}
+
+// Usage
+$translations = nias_load_translations();
+echo $translations['License'];
+```
+
+---
+
+## 🔄 Migration Guide | راهنمای مهاجرت
+
+### From Other License Systems | از سیستم‌های لایسنس دیگر
+
+#### Step 1: Export existing licenses | مرحله 1: خروجی لایسنس‌های موجود
+
+```php
+function nias_export_old_licenses() {
+    global $wpdb;
+    
+    $licenses = $wpdb->get_results(
+        "SELECT * FROM {$wpdb->prefix}old_licenses"
+    );
+    
+    $export = array();
+    foreach ( $licenses as $license ) {
+        $export[] = array(
+            'key' => $license->license_key,
+            'status' => $license->status,
+            'expires' => $license->expiry_date
+        );
+    }
+    
+    return $export;
+}
+```
+
+#### Step 2: Import to NLMW | مرحله 2: وارد کردن به NLMW
+
+```php
+function nias_import_licenses( $licenses ) {
+    $client = new Nias_License_Manager_Client( /* ... */ );
+    
+    foreach ( $licenses as $license ) {
+        // Validate each license
+        $result = $client->nias_validate_license( $license['key'] );
+        
+        if ( $result ) {
+            // Store in database
+            update_option( 'nias_license_' . $license['key'], array(
+                'status' => 'active',
+                'data' => $result
+            ));
+        }
+    }
+}
+```
+
+---
+
+## 📈 Performance Optimization | بهینه‌سازی عملکرد
+
+### 1. Caching | کش کردن
+
+```php
+// Cache license validation for 1 hour
+function nias_cached_validate( $license_key ) {
+    $cache_key = 'nias_license_' . md5( $license_key );
+    $cached = get_transient( $cache_key );
+    
+    if ( false !== $cached ) {
+        return $cached;
+    }
+    
+    $client = new Nias_License_Manager_Client( /* ... */ );
+    $result = $client->nias_validate_license( $license_key );
+    
+    set_transient( $cache_key, $result, HOUR_IN_SECONDS );
+    
+    return $result;
+}
+```
+
+### 2. Lazy Loading | بارگذاری تنبل
+
+```php
+// Only load license classes when needed
+function nias_lazy_load_license() {
+    static $client = null;
+    
+    if ( null === $client ) {
+        require_once 'class-license-manager-client.php';
+        $client = new Nias_License_Manager_Client( /* ... */ );
+    }
+    
+    return $client;
+}
+```
+
+### 3. Database Optimization | بهینه‌سازی پایگاه داده
+
+```php
+// Create index for faster queries
+global $wpdb;
+$wpdb->query(
+    "CREATE INDEX idx_license_key ON {$wpdb->prefix}options(option_name) 
+    WHERE option_name LIKE 'nias_%_license_%'"
+);
+```
+
+---
+
+## 🎯 Changelog | تغییرات
+
+### Version 1.0.0 (2024-12-18)
+
+#### Added | اضافه شده
+- ✨ Initial release | انتشار اولیه
+- ✅ License validation functionality | قابلیت اعتبارسنجی لایسنس
+- ✅ Activation/Deactivation system | سیستم فعال‌سازی/غیرفعال‌سازی
+- ✅ Automatic cron checks | بررسی‌های خودکار کرون
+- ✅ Professional admin settings page | صفحه تنظیمات مدیریتی حرفه‌ای
+- ✅ Email notifications | اعلان‌های ایمیل
+- ✅ Comprehensive logging | لاگ‌گیری جامع
+- ✅ Bilingual support (EN/FA) | پشتیبانی دو زبانه
+- ✅ Full API integration | یکپارچگی کامل API
+- ✅ Error handling | مدیریت خطا
+- ✅ Customizable translations | ترجمه‌های قابل سفارشی‌سازی
+
+---
+
+## 📞 Support | پشتیبانی
+
+### Getting Help | دریافت کمک
+
+**Documentation:** https://docs.yoursite.com  
+**Email:** support@yoursite.com  
+**Forum:** https://forum.yoursite.com  
+**GitHub:** https://github.com/yourname/nlmw
+
+### Reporting Bugs | گزارش باگ‌ها
+
+Please include:
+- WordPress version
+- PHP version
+- License Manager version
+- Error messages
+- Steps to reproduce
+
+---
+
+## 📄 License | لایسنس
+
+This library is licensed under GPL-2.0+
+
+این کتابخانه تحت لایسنس GPL-2.0+ منتشر شده است
+
+---
+
+## 👏 Credits | اعتبار
+
+**Developed by:** Nias Development Team  
+**توسعه توسط:** تیم توسعه نیاس
+
+**Built for:** License Manager for WooCommerce  
+**ساخته شده برای:** مدیریت لایسنس ووکامرس
+
+**Special Thanks:**
+- WordPress Community
+- WooCommerce Team
+- License Manager Plugin Developers
+
+---
+
+## 🚀 What's Next? | مرحله بعد چیست؟
+
+After setting up NLMW, you can:
+
+پس از راه‌اندازی NLMW، می‌توانید:
+
+1. **Customize the UI** - Match your brand colors  
+   **سفارشی‌سازی رابط** - تطبیق با رنگ‌های برند شما
+
+2. **Add Premium Features** - Restrict based on license  
+   **افزودن ویژگی‌های پریمیوم** - محدودسازی بر اساس لایسنس
+
+3. **Setup Email Templates** - Custom expiry notifications  
+   **راه‌اندازی قالب‌های ایمیل** - اعلان‌های سفارشی انقضا
+
+4. **Integrate Analytics** - Track license usage  
+   **یکپارچه‌سازی تحلیل** - پیگیری استفاده از لایسنس
+
+5. **Build Dashboard** - License management interface  
+   **ساخت داشبورد** - رابط مدیریت لایسنس
+
+---
+
+**Happy Coding! 🎉**  
+**برنامه‌نویسی خوبی داشته باشید! 🎉**
