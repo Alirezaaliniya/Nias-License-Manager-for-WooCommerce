@@ -112,8 +112,16 @@ class Nias_License_Settings_Page {
         $store_url = get_option( 'nias_' . $this->plugin_slug . '_store_url', '' );
         $consumer_key = get_option( 'nias_' . $this->plugin_slug . '_consumer_key', '' );
         $consumer_secret = get_option( 'nias_' . $this->plugin_slug . '_consumer_secret', '' );
+        $product_ids = get_option( 'nias_' . $this->plugin_slug . '_product_ids', array() );
+        $cache_days = get_option( 'nias_' . $this->plugin_slug . '_cache_days', 5 );
 
-        $this->license_client = new Nias_License_Manager_Client( $store_url, $consumer_key, $consumer_secret );
+        $this->license_client = new Nias_License_Manager_Client( 
+            $store_url, 
+            $consumer_key, 
+            $consumer_secret,
+            $product_ids,
+            $cache_days
+        );
     }
 
     /**
@@ -139,6 +147,10 @@ class Nias_License_Settings_Page {
         register_setting( 'nias_' . $this->plugin_slug . '_license_group', 'nias_' . $this->plugin_slug . '_store_url' );
         register_setting( 'nias_' . $this->plugin_slug . '_license_group', 'nias_' . $this->plugin_slug . '_consumer_key' );
         register_setting( 'nias_' . $this->plugin_slug . '_license_group', 'nias_' . $this->plugin_slug . '_consumer_secret' );
+        register_setting( 'nias_' . $this->plugin_slug . '_license_group', 'nias_' . $this->plugin_slug . '_product_ids', array(
+            'sanitize_callback' => array( $this, 'sanitize_product_ids' )
+        ) );
+        register_setting( 'nias_' . $this->plugin_slug . '_license_group', 'nias_' . $this->plugin_slug . '_cache_days' );
         register_setting( 'nias_' . $this->plugin_slug . '_license_group', 'nias_' . $this->plugin_slug . '_license_key' );
         register_setting( 'nias_' . $this->plugin_slug . '_license_group', 'nias_' . $this->plugin_slug . '_license_status' );
         register_setting( 'nias_' . $this->plugin_slug . '_license_group', 'nias_' . $this->plugin_slug . '_license_data' );
@@ -155,6 +167,27 @@ class Nias_License_Settings_Page {
         if ( isset( $_POST['nias_check_license'] ) ) {
             $this->nias_handle_license_check();
         }
+    }
+
+    /**
+     * Sanitize Product IDs
+     * پاک‌سازی شناسه محصولات
+     * 
+     * @param string $input Input string | رشته ورودی
+     * @return array Array of product IDs | آرایه شناسه محصولات
+     */
+    public function sanitize_product_ids( $input ) {
+        if ( empty( $input ) ) {
+            return array();
+        }
+
+        // Convert comma-separated string to array
+        // تبدیل رشته جدا شده با کاما به آرایه
+        $ids = array_map( 'trim', explode( ',', $input ) );
+        $ids = array_map( 'absint', $ids );
+        $ids = array_filter( $ids ); // Remove zeros
+
+        return $ids;
     }
 
     /**
@@ -507,6 +540,46 @@ class Nias_License_Settings_Page {
                                    placeholder="cs_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
                             <small>
                                 <?php echo $this->__( 'Get this from License Manager > Settings > REST API.' ); ?>
+                            </small>
+                        </div>
+
+                        <div class="nias-form-row">
+                            <label for="product_ids">
+                                📦 <?php echo $this->__( 'Product IDs' ); ?>
+                            </label>
+                            <?php 
+                            $product_ids = get_option( 'nias_' . $this->plugin_slug . '_product_ids', array() );
+                            $product_ids_string = is_array( $product_ids ) ? implode( ', ', $product_ids ) : '';
+                            ?>
+                            <input type="text" 
+                                   id="product_ids" 
+                                   name="nias_<?php echo $this->plugin_slug; ?>_product_ids" 
+                                   value="<?php echo esc_attr( $product_ids_string ); ?>" 
+                                   class="regular-text"
+                                   placeholder="5735, 5736, 5737">
+                            <small>
+                                <?php echo $this->__( 'Enter product IDs from your store (comma-separated). Leave empty to accept any product.' ); ?>
+                                <br>
+                                <?php echo $this->__( 'شناسه محصولات فروشگاه خود را وارد کنید (با کاما جدا شوند). برای پذیرش هر محصولی، خالی بگذارید.' ); ?>
+                            </small>
+                        </div>
+
+                        <div class="nias-form-row">
+                            <label for="cache_days">
+                                ⏱️ <?php echo $this->__( 'Cache Duration (Days)' ); ?>
+                            </label>
+                            <input type="number" 
+                                   id="cache_days" 
+                                   name="nias_<?php echo $this->plugin_slug; ?>_cache_days" 
+                                   value="<?php echo esc_attr( get_option( 'nias_' . $this->plugin_slug . '_cache_days', 5 ) ); ?>" 
+                                   min="1"
+                                   max="30"
+                                   class="regular-text"
+                                   placeholder="5">
+                            <small>
+                                <?php echo $this->__( 'How many days to cache license validation results (1-30 days).' ); ?>
+                                <br>
+                                <?php echo $this->__( 'چند روز نتایج اعتبارسنجی لایسنس کش شوند (1 تا 30 روز).' ); ?>
                             </small>
                         </div>
 
