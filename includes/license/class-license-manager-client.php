@@ -55,6 +55,22 @@ class Nias_License_Manager_Client {
     private $api_version = 'v2';
 
     /**
+     * Product IDs to validate against
+     * شناسه محصولات برای اعتبارسنجی
+     * 
+     * @var array
+     */
+    private $product_ids = array();
+
+    /**
+     * Cache Duration in Days
+     * مدت زمان کش به روز
+     * 
+     * @var int
+     */
+    private $cache_days = 5;
+
+    /**
      * Last Error Message
      * آخرین پیام خطا
      * 
@@ -69,11 +85,15 @@ class Nias_License_Manager_Client {
      * @param string $store_url Store URL | آدرس فروشگاه
      * @param string $consumer_key Consumer Key | کلید مصرف‌کننده
      * @param string $consumer_secret Consumer Secret | رمز مصرف‌کننده
+     * @param array $product_ids Array of product IDs to validate | آرایه شناسه محصولات برای اعتبارسنجی
+     * @param int $cache_days Cache duration in days (default: 5) | مدت زمان کش به روز (پیش‌فرض: 5)
      */
-    public function __construct( $store_url = '', $consumer_key = '', $consumer_secret = '' ) {
+    public function __construct( $store_url = '', $consumer_key = '', $consumer_secret = '', $product_ids = array(), $cache_days = 5 ) {
         $this->store_url = rtrim( $store_url, '/' );
         $this->consumer_key = $consumer_key;
         $this->consumer_secret = $consumer_secret;
+        $this->product_ids = is_array( $product_ids ) ? $product_ids : array( $product_ids );
+        $this->cache_days = absint( $cache_days );
     }
 
     /**
@@ -91,6 +111,24 @@ class Nias_License_Manager_Client {
         $response = $this->nias_make_request( $endpoint, 'GET' );
 
         if ( $response && isset( $response['success'] ) && $response['success'] === true ) {
+            // Validate product ID if specified
+            // اعتبارسنجی شناسه محصول در صورت مشخص بودن
+            if ( ! empty( $this->product_ids ) && isset( $response['data']['productId'] ) ) {
+                if ( ! in_array( $response['data']['productId'], $this->product_ids ) ) {
+                    $this->last_error = sprintf(
+                        __( 'License is not valid for this product. Expected product ID: %s, Got: %s', 'nias-lmw' ),
+                        implode( ', ', $this->product_ids ),
+                        $response['data']['productId']
+                    ) . ' | ' . 
+                    sprintf(
+                        __( 'لایسنس برای این محصول معتبر نیست. شناسه محصول مورد انتظار: %s، دریافت شده: %s', 'nias-lmw' ),
+                        implode( ', ', $this->product_ids ),
+                        $response['data']['productId']
+                    );
+                    return false;
+                }
+            }
+            
             return $response['data'];
         }
 
@@ -359,10 +397,54 @@ class Nias_License_Manager_Client {
      * @param string $store_url Store URL | آدرس فروشگاه
      * @param string $consumer_key Consumer Key | کلید مصرف‌کننده
      * @param string $consumer_secret Consumer Secret | رمز مصرف‌کننده
+     * @param array $product_ids Array of product IDs | آرایه شناسه محصولات
+     * @param int $cache_days Cache duration in days | مدت زمان کش به روز
      */
-    public function nias_set_credentials( $store_url, $consumer_key, $consumer_secret ) {
+    public function nias_set_credentials( $store_url, $consumer_key, $consumer_secret, $product_ids = array(), $cache_days = 5 ) {
         $this->store_url = rtrim( $store_url, '/' );
         $this->consumer_key = $consumer_key;
         $this->consumer_secret = $consumer_secret;
+        $this->product_ids = is_array( $product_ids ) ? $product_ids : array( $product_ids );
+        $this->cache_days = absint( $cache_days );
+    }
+
+    /**
+     * Get Product IDs
+     * دریافت شناسه محصولات
+     * 
+     * @return array Product IDs | شناسه محصولات
+     */
+    public function nias_get_product_ids() {
+        return $this->product_ids;
+    }
+
+    /**
+     * Set Product IDs
+     * تنظیم شناسه محصولات
+     * 
+     * @param array $product_ids Array of product IDs | آرایه شناسه محصولات
+     */
+    public function nias_set_product_ids( $product_ids ) {
+        $this->product_ids = is_array( $product_ids ) ? $product_ids : array( $product_ids );
+    }
+
+    /**
+     * Get Cache Duration
+     * دریافت مدت زمان کش
+     * 
+     * @return int Cache duration in days | مدت زمان کش به روز
+     */
+    public function nias_get_cache_days() {
+        return $this->cache_days;
+    }
+
+    /**
+     * Set Cache Duration
+     * تنظیم مدت زمان کش
+     * 
+     * @param int $days Cache duration in days | مدت زمان کش به روز
+     */
+    public function nias_set_cache_days( $days ) {
+        $this->cache_days = absint( $days );
     }
 }
