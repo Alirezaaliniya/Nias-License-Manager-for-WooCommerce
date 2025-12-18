@@ -328,17 +328,10 @@ Contributions are welcome! Please:
 ## 📧 Support | پشتیبانی
 
 ### English:
-- **Email**: support@nias.example
-- **Documentation**: [Full Docs](https://docs.example.com)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/nlmw/issues)
+- **Email**: info@nias.ir
+- **Documentation**: [Full Docs](https://github.com/Alirezaaliniya/Nias-License-Manager-for-WooCommerce/blob/main/NLMW-Documentation.md)
+- **Issues**: [GitHub Issues](https://github.com/Alirezaaliniya/Nias-License-Manager-for-WooCommerce/issues)
 - **License Manager Docs**: [Official Docs](https://licensemanager.at/docs/)
-
-### فارسی:
-- **ایمیل**: support@nias.example
-- **مستندات**: [مستندات کامل](https://docs.example.com)
-- **مشکلات**: [GitHub Issues](https://github.com/yourusername/nlmw/issues)
-- **مستندات License Manager**: [مستندات رسمی](https://licensemanager.at/docs/)
-
 ---
 
 ## 📄 License | مجوز
