@@ -203,7 +203,6 @@ class Nias_License_Settings_Page {
 
         wp_add_inline_style( 'wp-admin', '
             .nias-license-container {
-                max-width: 900px;
                 margin: 20px 0;
             }
             .nias-license-box {

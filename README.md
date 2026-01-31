@@ -112,7 +112,7 @@ License KEY-222 → Product 5736 (Analytics)
 License KEY-333 → Product 5737 (Backup)
 ```
 
-**SEO Plugin** با این تنظیمات:
+ با این تنظیمات:
 ```php
 $client = new Nias_License_Manager_Client(
     'https://yourstore.com',
@@ -130,29 +130,7 @@ $client = new Nias_License_Manager_Client(
 
 ---
 
-## 🎯 Configuration Guide | راهنمای پیکربندی
 
-### In WordPress Admin | در پنل مدیریت وردپرس
-
-1. Go to: **Settings → Your Plugin License**
-   
-2. **API Configuration Section:**
-
-| Field | Value | Example |
-|-------|-------|---------|
-| Store URL | Your store address | `https://nias.ir` |
-| Consumer Key | From License Manager | `ck_3b988485942fbdd...` |
-| Consumer Secret | From License Manager | `cs_07a8aae99c7b05d...` |
-| **Product IDs** | **Your product IDs** | **`5735, 5736`** ← NEW! |
-| Cache Duration | Days to cache | `5` (default) |
-
-3. **Click "Save API Settings"**
-
-4. **License Activation Section:**
-   - Enter License Key
-   - Click "Activate License"
-
----
 
 ## 💡 Multiple Products Support | پشتیبانی چند محصول
 
@@ -236,76 +214,6 @@ new Nias_License_Manager_Client(
         │                 │
         ▼                 ▼
     ✅ Valid          ❌ Invalid
-```
-
----
-
-## ⚙️ Advanced Configuration | پیکربندی پیشرفته
-
-### Dynamic Product IDs | شناسه محصولات پویا
-
-```php
-// Get from database or config
-$my_product_ids = get_option( 'my_plugin_product_ids', array( 5735 ) );
-
-$client = new Nias_License_Manager_Client(
-    $store_url,
-    $consumer_key,
-    $consumer_secret,
-    $my_product_ids,
-    5
-);
-```
-
-### Update Product IDs Later | به‌روزرسانی شناسه محصولات بعداً
-
-```php
-$client->nias_set_product_ids( array( 5735, 5736 ) );
-```
-
-### Check Current Product IDs | بررسی شناسه محصولات فعلی
-
-```php
-$current_ids = $client->nias_get_product_ids();
-print_r( $current_ids );
-// Output: Array( [0] => 5735, [1] => 5736 )
-```
-
----
-
-## 🛡️ Error Handling | مدیریت خطا
-
-### Product ID Mismatch | عدم تطابق شناسه محصول
-
-```php
-$result = $client->nias_validate_license( 'WRONG-PRODUCT-KEY' );
-
-if ( ! $result ) {
-    $error = $client->nias_get_last_error();
-    echo $error;
-    // Output: "License is not valid for this product. 
-    //          Expected product ID: 5735, Got: 5736"
-}
-```
-
-### Handle Different Errors | مدیریت خطاهای مختلف
-
-```php
-$result = $client->nias_activate_license( $license_key );
-
-if ( ! $result ) {
-    $error = $client->nias_get_last_error();
-    
-    if ( strpos( $error, 'product' ) !== false ) {
-        echo 'Wrong product license!';
-    } elseif ( strpos( $error, 'expired' ) !== false ) {
-        echo 'License has expired!';
-    } elseif ( strpos( $error, 'activation limit' ) !== false ) {
-        echo 'Too many activations!';
-    } else {
-        echo 'Unknown error: ' . $error;
-    }
-}
 ```
 
 ---
@@ -497,25 +405,6 @@ $client_b = new Nias_License_Manager_Client(
 
 ---
 
-## 🔧 Configuration | پیکربندی
-
-### 1. Get API Credentials | دریافت اطلاعات API
-
-On your WooCommerce store:
-1. Go to `License Manager > Settings > REST API`
-2. Click "Add API Key"
-3. Set permissions: Read & Write
-4. Copy Consumer Key & Secret
-
-### 2. Configure in WordPress | پیکربندی در وردپرس
-
-1. Navigate to `Settings > Your Plugin License`
-2. Enter Store URL, Consumer Key, Consumer Secret
-3. Save API Settings
-4. Enter License Key
-5. Click "Activate License"
-
----
 
 ## 💡 Usage Examples | نمونه‌های استفاده
 
@@ -702,17 +591,6 @@ add_action( 'admin_menu', function() {
 
 ## 🎨 Customization | سفارشی‌سازی
 
-### Translations | ترجمه‌ها
-
-Edit `translations.php`:
-
-```php
-return array(
-    'License Key' => 'Your Translation | ترجمه شما',
-    'Activate' => 'Your Translation | ترجمه شما',
-    // ...
-);
-```
 
 ### Cron Interval | فاصله کرون
 
