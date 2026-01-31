@@ -55,15 +55,25 @@ class Nias_License_Cron_Handler {
     private $check_interval;
 
     /**
+     * Plugin ID
+     * شناسه پلاگین
+     * 
+     * @var string
+     */
+    private $plugin_id = '';
+
+    /**
      * Constructor
      * سازنده کلاس
      * 
      * @param string $plugin_slug Plugin slug | اسلاگ افزونه
      * @param int $check_interval Check interval in seconds | فاصله بررسی به ثانیه
+     * @param string $plugin_id Unique plugin identifier | شناسه منحصر به فرد پلاگین
      */
-    public function __construct( $plugin_slug = 'my-plugin', $check_interval = DAY_IN_SECONDS ) {
+    public function __construct( $plugin_slug = 'my-plugin', $check_interval = DAY_IN_SECONDS, $plugin_id = '' ) {
         $this->plugin_slug = $plugin_slug;
-        $this->cron_hook = 'nias_' . $this->plugin_slug . '_license_check';
+        $this->plugin_id = sanitize_key( $plugin_id );
+        $this->cron_hook = 'nlmw_' . $this->plugin_slug . '_license_check';
         $this->check_interval = $check_interval;
 
         // Initialize license client
@@ -89,11 +99,20 @@ class Nias_License_Cron_Handler {
      * مقداردهی اولیه کلاینت لایسنس
      */
     private function nias_init_license_client() {
-        $store_url = get_option( 'nias_' . $this->plugin_slug . '_store_url', '' );
-        $consumer_key = get_option( 'nias_' . $this->plugin_slug . '_consumer_key', '' );
-        $consumer_secret = get_option( 'nias_' . $this->plugin_slug . '_consumer_secret', '' );
+        $store_url = get_option( 'nlmw_' . $this->plugin_slug . '_store_url', '' );
+        $consumer_key = get_option( 'nlmw_' . $this->plugin_slug . '_consumer_key', '' );
+        $consumer_secret = get_option( 'nlmw_' . $this->plugin_slug . '_consumer_secret', '' );
+        $product_ids = get_option( 'nlmw_' . $this->plugin_slug . '_product_ids', array() );
+        $cache_days = get_option( 'nlmw_' . $this->plugin_slug . '_cache_days', 5 );
 
-        $this->license_client = new Nias_License_Manager_Client( $store_url, $consumer_key, $consumer_secret );
+        $this->license_client = new Nias_License_Manager_Client( 
+            $store_url, 
+            $consumer_key, 
+            $consumer_secret,
+            $product_ids,
+            $cache_days,
+            $this->plugin_id
+        );
     }
 
     /**
@@ -104,7 +123,7 @@ class Nias_License_Cron_Handler {
      * @return array Modified schedules | برنامه‌های اصلاح شده
      */
     public function nias_add_custom_cron_interval( $schedules ) {
-        $interval_name = 'nias_' . $this->plugin_slug . '_interval';
+        $interval_name = 'nlmw_' . $this->plugin_slug . '_interval';
         
         if ( ! isset( $schedules[ $interval_name ] ) ) {
             $schedules[ $interval_name ] = array(
@@ -132,7 +151,7 @@ class Nias_License_Cron_Handler {
      */
     public function nias_schedule_license_check() {
         if ( ! wp_next_scheduled( $this->cron_hook ) ) {
-            $interval_name = 'nias_' . $this->plugin_slug . '_interval';
+            $interval_name = 'nlmw_' . $this->plugin_slug . '_interval';
             wp_schedule_event( time(), $interval_name, $this->cron_hook );
             
             // Log the scheduling
@@ -152,8 +171,8 @@ class Nias_License_Cron_Handler {
      * تابع اصلی که در برنامه کرون اجرا می‌شود
      */
     public function nias_check_license_status() {
-        $license_key = get_option( 'nias_' . $this->plugin_slug . '_license_key', '' );
-        $license_status = get_option( 'nias_' . $this->plugin_slug . '_license_status', 'inactive' );
+        $license_key = get_option( 'nlmw_' . $this->plugin_slug . '_license_key', '' );
+        $license_status = get_option( 'nlmw_' . $this->plugin_slug . '_license_status', 'inactive' );
 
         // Only check if license is supposedly active
         // فقط در صورتی بررسی کن که لایسنس ظاهراً فعال است
@@ -177,9 +196,9 @@ class Nias_License_Cron_Handler {
             if ( $is_valid ) {
                 // Update license data
                 // به‌روزرسانی اطلاعات لایسنس
-                update_option( 'nias_' . $this->plugin_slug . '_license_data', $license_data );
-                update_option( 'nias_' . $this->plugin_slug . '_license_status', 'active' );
-                update_option( 'nias_' . $this->plugin_slug . '_last_check', time() );
+                update_option( 'nlmw_' . $this->plugin_slug . '_license_data', $license_data );
+                update_option( 'nlmw_' . $this->plugin_slug . '_license_status', 'active' );
+                update_option( 'nlmw_' . $this->plugin_slug . '_last_check', time() );
 
                 $this->nias_log_message( 
                     __( 'License validated successfully.', 'nias-lmw' ) . ' | ' . 
@@ -228,10 +247,19 @@ class Nias_License_Cron_Handler {
      * @return bool True if valid | درست در صورت معتبر بودن
      */
     private function nias_verify_license_data( $license_data ) {
-        // Check status (2 = active)
-        // بررسی وضعیت (2 = فعال)
-        if ( ! isset( $license_data['status'] ) || $license_data['status'] != 2 ) {
+        // Check sellable status (block only "not for sale")
+        // بررسی وضعیت قابل فروش (فقط «غیر قابل فروش» بلوکه شود)
+        if ( ! $this->license_client->nias_is_data_sellable( $license_data ) ) {
             return false;
+        }
+
+        // Check productId matches configured product IDs if any
+        // بررسی تطابق شناسه محصول با شناسه‌های پیکربندی‌شده
+        $allowed_products = $this->license_client->nias_get_product_ids();
+        if ( ! empty( $allowed_products ) && isset( $license_data['productId'] ) ) {
+            if ( ! in_array( $license_data['productId'], $allowed_products ) ) {
+                return false;
+            }
         }
 
         // Check expiration date
@@ -249,7 +277,7 @@ class Nias_License_Cron_Handler {
             $activated = isset( $license_data['timesActivated'] ) ? intval( $license_data['timesActivated'] ) : 0;
             $max = intval( $license_data['timesActivatedMax'] );
             
-            if ( $activated >= $max ) {
+            if ( $activated > $max ) {
                 return false; // Activation limit reached | محدودیت فعال‌سازی به پایان رسیده
             }
         }
@@ -280,14 +308,14 @@ class Nias_License_Cron_Handler {
 
         foreach ( $warning_days as $warning_day ) {
             if ( $days_until_expiry <= $warning_day ) {
-                $last_warning = get_option( 'nias_' . $this->plugin_slug . '_last_expiry_warning', 0 );
+                $last_warning = get_option( 'nlmw_' . $this->plugin_slug . '_last_expiry_warning', 0 );
                 $warning_key = 'day_' . $warning_day;
 
                 // Send warning once per threshold
                 // ارسال هشدار یک بار برای هر آستانه
                 if ( $last_warning !== $warning_key ) {
                     $this->nias_send_expiry_notification( $days_until_expiry );
-                    update_option( 'nias_' . $this->plugin_slug . '_last_expiry_warning', $warning_key );
+                    update_option( 'nlmw_' . $this->plugin_slug . '_last_expiry_warning', $warning_key );
                 }
                 break;
             }
@@ -319,8 +347,8 @@ class Nias_License_Cron_Handler {
 
         // Update license status to inactive
         // به‌روزرسانی وضعیت لایسنس به غیرفعال
-        update_option( 'nias_' . $this->plugin_slug . '_license_status', 'inactive' );
-        update_option( 'nias_' . $this->plugin_slug . '_license_invalid_reason', $reason );
+        update_option( 'nlmw_' . $this->plugin_slug . '_license_status', 'inactive' );
+        update_option( 'nlmw_' . $this->plugin_slug . '_license_invalid_reason', $reason );
 
         $this->nias_log_message( 
             sprintf( __( 'License marked as invalid: %s', 'nias-lmw' ), $reason ),
@@ -344,14 +372,14 @@ class Nias_License_Cron_Handler {
      * پیگیری شکست‌های پی‌درپی اعتبارسنجی
      */
     private function nias_increment_failure_count() {
-        $failure_count = get_option( 'nias_' . $this->plugin_slug . '_validation_failures', 0 );
+        $failure_count = get_option( 'nlmw_' . $this->plugin_slug . '_validation_failures', 0 );
         $failure_count++;
-        update_option( 'nias_' . $this->plugin_slug . '_validation_failures', $failure_count );
+        update_option( 'nlmw_' . $this->plugin_slug . '_validation_failures', $failure_count );
 
         // After 3 consecutive failures, mark as inactive
         // پس از 3 شکست پی‌درپی، علامت‌گذاری به عنوان غیرفعال
         if ( $failure_count >= 3 ) {
-            update_option( 'nias_' . $this->plugin_slug . '_license_status', 'inactive' );
+            update_option( 'nlmw_' . $this->plugin_slug . '_license_status', 'inactive' );
             $this->nias_log_message( 
                 __( 'License marked as inactive after multiple validation failures.', 'nias-lmw' ) . ' | ' . 
                 __( 'لایسنس پس از چندین شکست اعتبارسنجی به عنوان غیرفعال علامت‌گذاری شد.', 'nias-lmw' ),
@@ -498,7 +526,7 @@ class Nias_License_Cron_Handler {
             $logs = array_slice( $logs, -50 );
         }
 
-        update_option( 'nias_' . $this->plugin_slug . '_logs', $logs );
+        update_option( 'nlmw_' . $this->plugin_slug . '_logs', $logs );
     }
 
     /**
@@ -509,7 +537,7 @@ class Nias_License_Cron_Handler {
      * @return array Logs | لاگ‌ها
      */
     public function nias_get_logs( $limit = 50 ) {
-        $logs = get_option( 'nias_' . $this->plugin_slug . '_logs', array() );
+        $logs = get_option( 'nlmw_' . $this->plugin_slug . '_logs', array() );
         return array_slice( $logs, -$limit );
     }
 
@@ -518,6 +546,6 @@ class Nias_License_Cron_Handler {
      * پاک کردن لاگ‌ها
      */
     public function nias_clear_logs() {
-        delete_option( 'nias_' . $this->plugin_slug . '_logs' );
+        delete_option( 'nlmw_' . $this->plugin_slug . '_logs' );
     }
 }

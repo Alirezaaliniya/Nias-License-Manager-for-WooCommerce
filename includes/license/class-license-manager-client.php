@@ -79,6 +79,16 @@ class Nias_License_Manager_Client {
     private $last_error = null;
 
     /**
+     * Plugin ID
+     * شناسه پلاگین (برای جلوگیری از تداخل با پلاگین‌های دیگر)
+     * 
+     * @var string
+     */
+    private $plugin_id = '';
+    private $strict_validation = false;
+    private $enforce_product_ids = false;
+
+    /**
      * Constructor
      * سازنده کلاس
      * 
@@ -87,13 +97,15 @@ class Nias_License_Manager_Client {
      * @param string $consumer_secret Consumer Secret | رمز مصرف‌کننده
      * @param array $product_ids Array of product IDs to validate | آرایه شناسه محصولات برای اعتبارسنجی
      * @param int $cache_days Cache duration in days (default: 5) | مدت زمان کش به روز (پیش‌فرض: 5)
+     * @param string $plugin_id Unique plugin identifier to prevent conflicts | شناسه منحصر به فرد پلاگین برای جلوگیری از تداخل
      */
-    public function __construct( $store_url = '', $consumer_key = '', $consumer_secret = '', $product_ids = array(), $cache_days = 5 ) {
+    public function __construct( $store_url = '', $consumer_key = '', $consumer_secret = '', $product_ids = array(), $cache_days = 5, $plugin_id = '' ) {
         $this->store_url = rtrim( $store_url, '/' );
         $this->consumer_key = $consumer_key;
         $this->consumer_secret = $consumer_secret;
         $this->product_ids = is_array( $product_ids ) ? $product_ids : array( $product_ids );
         $this->cache_days = absint( $cache_days );
+        $this->plugin_id = sanitize_key( $plugin_id );
     }
 
     /**
@@ -111,21 +123,18 @@ class Nias_License_Manager_Client {
         $response = $this->nias_make_request( $endpoint, 'GET' );
 
         if ( $response && isset( $response['success'] ) && $response['success'] === true ) {
-            // Validate product ID if specified
-            // اعتبارسنجی شناسه محصول در صورت مشخص بودن
             if ( ! empty( $this->product_ids ) && isset( $response['data']['productId'] ) ) {
                 if ( ! in_array( $response['data']['productId'], $this->product_ids ) ) {
-                    $this->last_error = sprintf(
-                        __( 'License is not valid for this product. Expected product ID: %s, Got: %s', 'nias-lmw' ),
-                        implode( ', ', $this->product_ids ),
-                        $response['data']['productId']
-                    ) . ' | ' . 
-                    sprintf(
-                        __( 'لایسنس برای این محصول معتبر نیست. شناسه محصول مورد انتظار: %s، دریافت شده: %s', 'nias-lmw' ),
-                        implode( ', ', $this->product_ids ),
-                        $response['data']['productId']
-                    );
-                    return false;
+                    if ( $this->enforce_product_ids ) {
+                        $this->last_error = sprintf(
+                            __( 'License is not valid for this product. Expected product ID: %s, Got: %s', 'nias-lmw' ),
+                            implode( ', ', $this->product_ids ),
+                            $response['data']['productId']
+                        );
+                        return false;
+                    } else {
+                        error_log( 'NLMW Debug: Product ID mismatch. Expected: ' . implode( ', ', $this->product_ids ) . ' Got: ' . $response['data']['productId'] );
+                    }
                 }
             }
             
@@ -151,10 +160,21 @@ class Nias_License_Manager_Client {
         $response = $this->nias_make_request( $endpoint, 'GET', $params );
 
         if ( $response && isset( $response['success'] ) && $response['success'] === true ) {
-            // Store activation token for later deactivation
-            // ذخیره توکن فعال‌سازی برای غیرفعال‌سازی بعدی
             if ( isset( $response['data']['activationData']['token'] ) ) {
                 update_option( 'nias_activation_token_' . md5( $license_key ), $response['data']['activationData']['token'] );
+            }
+            if ( $this->enforce_product_ids && ! empty( $this->product_ids ) && isset( $response['data']['productId'] ) ) {
+                if ( ! in_array( $response['data']['productId'], $this->product_ids ) ) {
+                    $this->last_error = sprintf( 'شناسه محصول لایسنس با پلاگین سازگار نیست (انتظار: %1$s، دریافت: %2$s)', implode( ', ', $this->product_ids ), $response['data']['productId'] );
+                    return false;
+                }
+            }
+            if ( $this->strict_validation ) {
+                $validated = $this->nias_is_license_valid( $license_key );
+                if ( ! $validated ) {
+                    $this->last_error = $this->last_error ? $this->last_error : 'License invalid after activation';
+                    return false;
+                }
             }
             return $response['data'];
         }
@@ -234,24 +254,58 @@ class Nias_License_Manager_Client {
         $license_data = $this->nias_validate_license( $license_key );
 
         if ( ! $license_data ) {
+            $this->last_error = 'دریافت اطلاعات لایسنس ناموفق بود';
             return false;
         }
 
-        // Check if license is active (status = 2 means active)
-        // بررسی فعال بودن لایسنس (وضعیت 2 به معنای فعال است)
-        if ( isset( $license_data['status'] ) && $license_data['status'] == 2 ) {
-            // Check expiration date
-            // بررسی تاریخ انقضا
-            if ( isset( $license_data['expiresAt'] ) && ! empty( $license_data['expiresAt'] ) ) {
-                $expiry_date = strtotime( $license_data['expiresAt'] );
-                if ( $expiry_date < time() ) {
-                    return false; // Expired | منقضی شده
-                }
-            }
-            return true;
+        if ( ! $this->nias_is_data_sellable( $license_data ) ) {
+            $this->last_error = 'وضعیت لایسنس غیر قابل فروش است';
+            return false;
         }
 
-        return false;
+        // Expiry
+        if ( isset( $license_data['expiresAt'] ) && ! empty( $license_data['expiresAt'] ) ) {
+            $expiry_date = strtotime( $license_data['expiresAt'] );
+            if ( $expiry_date < time() ) {
+                $this->last_error = 'لایسنس منقضی شده است';
+                return false;
+            }
+        }
+
+        // Capacity
+        if ( isset( $license_data['timesActivatedMax'] ) && $license_data['timesActivatedMax'] > 0 ) {
+            $activated = isset( $license_data['timesActivated'] ) ? intval( $license_data['timesActivated'] ) : 0;
+            $max = intval( $license_data['timesActivatedMax'] );
+            if ( $activated > $max ) {
+                $this->last_error = sprintf( 'فعال‌سازی فراتر از ظرفیت مجاز است (استفاده‌شده: %1$d از %2$d)', $activated, $max );
+                return false;
+            }
+        }
+
+        // Product ID enforcement
+        if ( $this->enforce_product_ids && ! empty( $this->product_ids ) && isset( $license_data['productId'] ) ) {
+            if ( ! in_array( $license_data['productId'], $this->product_ids ) ) {
+                $this->last_error = sprintf( 'شناسه محصول لایسنس با پلاگین سازگار نیست (انتظار: %1$s، دریافت: %2$s)', implode( ', ', $this->product_ids ), $license_data['productId'] );
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function nias_is_data_sellable( $license_data ) {
+        $name = '';
+        if ( isset( $license_data['statusName'] ) ) {
+            $name = $license_data['statusName'];
+        } elseif ( isset( $license_data['statusText'] ) ) {
+            $name = $license_data['statusText'];
+        }
+        $name_norm = is_string( $name ) ? mb_strtolower( trim( $name ) ) : '';
+        $blocked = array( 'غیر قابل فروش', 'not for sale', 'unavailable', 'non saleable', 'non-saleable' );
+        if ( ! empty( $name_norm ) && in_array( $name_norm, $blocked, true ) ) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -310,9 +364,13 @@ class Nias_License_Manager_Client {
     private function nias_make_request( $endpoint, $method = 'GET', $data = array() ) {
         $this->last_error = null;
 
+        $safe_url = sprintf( '%s/wp-json/lmfwc/%s%s', $this->store_url, $this->api_version, $endpoint );
+        error_log( 'NLMW Debug: Request ' . $method . ' ' . $safe_url );
+
         if ( empty( $this->store_url ) || empty( $this->consumer_key ) || empty( $this->consumer_secret ) ) {
             $this->last_error = __( 'API credentials not configured.', 'nias-lmw' ) . ' | ' . 
                                 __( 'اطلاعات API پیکربندی نشده است.', 'nias-lmw' );
+            error_log( 'NLMW Debug: Error - Missing credentials for ' . $safe_url );
             return false;
         }
 
@@ -355,7 +413,8 @@ class Nias_License_Manager_Client {
         $response = wp_remote_request( $url, $args );
 
         if ( is_wp_error( $response ) ) {
-            $this->last_error = $response->get_error_message();
+            $this->last_error = 'WP_Error: ' . $response->get_error_message() . ' | Method: ' . $method . ' | Endpoint: ' . $endpoint;
+            error_log( 'NLMW Debug: WP_Error on ' . $safe_url . ' -> ' . $response->get_error_message() );
             return false;
         }
 
@@ -364,8 +423,9 @@ class Nias_License_Manager_Client {
         $decoded = json_decode( $body, true );
 
         if ( $response_code < 200 || $response_code >= 300 ) {
-            $this->last_error = isset( $decoded['message'] ) ? $decoded['message'] : 
-                                sprintf( __( 'API request failed with status code: %d', 'nias-lmw' ), $response_code );
+            $message = isset( $decoded['message'] ) ? $decoded['message'] : 'HTTP ' . $response_code;
+            $this->last_error = 'HTTP ' . $response_code . ' | Endpoint: ' . $endpoint . ' | Message: ' . $message;
+            error_log( 'NLMW Debug: HTTP error ' . $response_code . ' on ' . $safe_url . ' | Body: ' . ( is_string( $body ) ? $body : '' ) );
             return false;
         }
 
@@ -388,6 +448,12 @@ class Nias_License_Manager_Client {
      */
     public function nias_clear_error() {
         $this->last_error = null;
+    }
+    public function nias_set_strict_validation( $strict ) {
+        $this->strict_validation = (bool) $strict;
+    }
+    public function nias_set_enforce_product_ids( $enforce ) {
+        $this->enforce_product_ids = (bool) $enforce;
     }
 
     /**
