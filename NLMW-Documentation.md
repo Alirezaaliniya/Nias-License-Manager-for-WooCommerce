@@ -5,6 +5,117 @@
 **Author | نویسنده:** Nias Development Team  
 **License | لایسنس:** GPL-2.0+
 
+
+## 🔒 قفل‌گذاری بخش‌ها در پلاگین/قالب (فارسی)
+
+### الگوی پایه راه‌اندازی
+
+```php
+$client = new Nias_License_Manager_Client(
+    get_option( 'nlmw_my-plugin_store_url' ),
+    get_option( 'nlmw_my-plugin_consumer_key' ),
+    get_option( 'nlmw_my-plugin_consumer_secret' )
+);
+$license_key = get_option( 'nlmw_my-plugin_license_key' );
+```
+
+### 1) مخفی‌سازی عناصر رابط کاربری (Frontend/UI)
+
+```php
+if ( ! $client->nias_is_license_valid( $license_key ) ) {
+    // نمایش نده
+    return;
+}
+
+echo '<section class="premium-area">محتوای ویژه</section>';
+```
+
+### 2) نمایش پیام فعال‌سازی (ادمین و فرانت‌اند)
+
+```php
+if ( ! $client->nias_is_license_valid( $license_key ) ) {
+    echo '<div class="notice notice-warning"><p>برای دسترسی به این بخش، لایسنس را فعال کنید.</p></div>';
+    // یا توقف عملیات حساس:
+    // wp_die( 'برای استفاده از این قابلیت، لایسنس را فعال کنید.' );
+}
+```
+
+### 3) ریدایرکت به صفحه ثبت/فعال‌سازی لایسنس (ادمین)
+
+```php
+add_action( 'admin_init', function() {
+    $client = new Nias_License_Manager_Client(
+        get_option( 'nlmw_my-plugin_store_url' ),
+        get_option( 'nlmw_my-plugin_consumer_key' ),
+        get_option( 'nlmw_my-plugin_consumer_secret' )
+    );
+    $license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+    if ( ! $client->nias_is_license_valid( $license_key ) ) {
+        $page = 'my-plugin-license'; // اسلاگ صفحه: {plugin_slug}-license
+        wp_safe_redirect( admin_url( 'options-general.php?page=' . $page ) );
+        exit;
+    }
+} );
+```
+
+### 4) ریدایرکت در فرانت‌اند به صفحه سفارشی
+
+```php
+add_action( 'template_redirect', function() {
+    $client = new Nias_License_Manager_Client( $url, $key, $secret );
+    $license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+    if ( is_page( 'premium-content' ) && ! $client->nias_is_license_valid( $license_key ) ) {
+        wp_safe_redirect( home_url( '/register-license' ) );
+        exit;
+    }
+} );
+```
+
+### 5) قفل با شورت‌کد
+
+```php
+add_shortcode( 'premium_box', function( $atts, $content = '' ) {
+    $client = new Nias_License_Manager_Client( $url, $key, $secret );
+    $license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+    if ( ! $client->nias_is_license_valid( $license_key ) ) {
+        return '<div class="notice notice-warning"><p>برای مشاهده این بخش، لایسنس را فعال کنید.</p></div>';
+    }
+
+    return '<div class="premium-box">' . do_shortcode( $content ) . '</div>';
+} );
+```
+
+### 6) قفل کردن منوها/صفحات مدیریت افزونه
+
+```php
+add_action( 'admin_menu', function() {
+    $client = new Nias_License_Manager_Client( $url, $key, $secret );
+    $license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+    if ( ! $client->nias_is_license_valid( $license_key ) ) {
+        remove_submenu_page( 'options-general.php', 'my-plugin-premium' );
+    }
+} );
+```
+
+### 7) محافظت از اکشن‌های حساس (نمونه عملی)
+
+```php
+add_action( 'admin_post_my_plugin_generate_report', function() {
+    $client = new Nias_License_Manager_Client( $url, $key, $secret );
+    $license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+    if ( ! $client->nias_is_license_valid( $license_key ) ) {
+        wp_die( 'برای تولید گزارش، ابتدا لایسنس را فعال کنید.' );
+    }
+
+    // ادامه فرایند تولید گزارش...
+} );
+```
+
 ---
 
 ## 📋 Table of Contents | فهرست مطالب

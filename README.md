@@ -141,8 +141,8 @@ $client = new Nias_License_Manager_Client(
 | Field | Value | Example |
 |-------|-------|---------|
 | Store URL | Your store address | `https://nias.ir` |
-| Consumer Key | From License Manager | `ck_3b9884854290942fbdd...` |
-| Consumer Secret | From License Manager | `cs_07a8aae132a99c7b05d...` |
+| Consumer Key | From License Manager | `ck_3b988485942fbdd...` |
+| Consumer Secret | From License Manager | `cs_07a8aae99c7b05d...` |
 | **Product IDs** | **Your product IDs** | **`5735, 5736`** ← NEW! |
 | Cache Duration | Days to cache | `5` (default) |
 
@@ -552,6 +552,150 @@ if ( $result ) {
 $cron = new Nias_License_Cron_Handler( 'my-plugin' );
 $status = $cron->nias_force_check_now();
 echo 'Status: ' . $status;
+```
+
+---
+
+## 🧩 استفاده در پلاگین و قالب (فارسی)
+
+### داخل پلاگین وردپرس
+
+```php
+// فایل‌های کتابخانه را اضافه کنید (داخل افزونه خودتان)
+require_once plugin_dir_path( __FILE__ ) . 'includes/license/class-license-manager-client.php';
+
+// ساخت کلاینت با اطلاعات ذخیره‌شده در تنظیمات
+$client = new Nias_License_Manager_Client(
+    get_option( 'nlmw_my-plugin_store_url' ),
+    get_option( 'nlmw_my-plugin_consumer_key' ),
+    get_option( 'nlmw_my-plugin_consumer_secret' )
+);
+
+$license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+if ( $client->nias_is_license_valid( $license_key ) ) {
+    // بخش‌های پریمیوم را بارگذاری کنید
+    // require_once 'includes/premium-features.php';
+} else {
+    add_action( 'admin_notices', function() {
+        echo '<div class="notice notice-warning"><p>برای استفاده از ویژگی‌های پریمیوم، لایسنس را فعال کنید.</p></div>';
+    } );
+}
+```
+
+### داخل قالب وردپرس (theme)
+
+```php
+// داخل functions.php قالب
+require_once get_stylesheet_directory() . '/includes/license/class-license-manager-client.php';
+
+add_action( 'after_setup_theme', function() {
+    $client = new Nias_License_Manager_Client(
+        get_option( 'nlmw_my-theme_store_url' ),
+        get_option( 'nlmw_my-theme_consumer_key' ),
+        get_option( 'nlmw_my-theme_consumer_secret' )
+    );
+
+    $license_key = get_option( 'nlmw_my-theme_license_key' );
+
+    // نمونه استفاده: نمایش پیام در پیشخوان برای مدیر
+    if ( is_admin() && ! $client->nias_is_license_valid( $license_key ) ) {
+        add_action( 'admin_notices', function() {
+            echo '<div class="notice notice-error"><p>قالب فعال نیست. لطفاً لایسنس را ثبت و فعال کنید.</p></div>';
+        } );
+    }
+} );
+```
+
+---
+
+## 🔒 قفل کردن بخش‌ها (چند روش کاربردی)
+
+### 1) مخفی کردن نمایش (Frontend/UI)
+
+```php
+$client = new Nias_License_Manager_Client( $url, $key, $secret );
+$license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+if ( ! $client->nias_is_license_valid( $license_key ) ) {
+    // محتوای پریمیوم را نمایش نده
+    return;
+}
+
+// محتوای پریمیوم
+echo '<div class="premium-box">محتوای ویژه کاربران دارای لایسنس</div>';
+```
+
+### 2) نمایش پیام فعال‌سازی
+
+```php
+if ( ! $client->nias_is_license_valid( $license_key ) ) {
+    echo '<div class="notice notice-warning"><p>برای دسترسی به این بخش، لایسنس را فعال کنید.</p></div>';
+    // یا توقف عملیات حساس:
+    // wp_die( 'برای استفاده از این ویژگی، لایسنس را فعال کنید.' );
+}
+```
+
+### 3) ریدایرکت به صفحه ثبت/فعال‌سازی لایسنس
+
+```php
+add_action( 'admin_init', function() {
+    $client = new Nias_License_Manager_Client( $url, $key, $secret );
+    $license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+    if ( ! $client->nias_is_license_valid( $license_key ) ) {
+        // ریدایرکت به صفحه تنظیمات لایسنس افزونه
+        $page = 'my-plugin-license'; // اسلاگ صفحه: {plugin_slug}-license
+        wp_safe_redirect( admin_url( 'options-general.php?page=' . $page ) );
+        exit;
+    }
+} );
+
+// ریدایرکت در فرانت‌اند به صفحه سفارشی
+add_action( 'template_redirect', function() {
+    $client = new Nias_License_Manager_Client( $url, $key, $secret );
+    $license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+    if ( is_page( 'premium-content' ) && ! $client->nias_is_license_valid( $license_key ) ) {
+        wp_safe_redirect( home_url( '/register-license' ) );
+        exit;
+    }
+} );
+```
+
+### 4) قفل بر اساس شورت‌کد
+
+```php
+add_shortcode( 'premium_box', function( $atts, $content = '' ) {
+    $client = new Nias_License_Manager_Client(
+        get_option( 'nlmw_my-plugin_store_url' ),
+        get_option( 'nlmw_my-plugin_consumer_key' ),
+        get_option( 'nlmw_my-plugin_consumer_secret' )
+    );
+    $license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+    if ( ! $client->nias_is_license_valid( $license_key ) ) {
+        return '<div class="notice notice-warning"><p>برای مشاهده این بخش، لایسنس را فعال کنید.</p></div>';
+    }
+
+    return '<div class="premium-box">' . do_shortcode( $content ) . '</div>';
+} );
+
+// استفاده در محتوا: [premium_box]محتوای پریمیوم[/premium_box]
+```
+
+### 5) قفل کردن صفحه‌های مدیریت افزونه
+
+```php
+add_action( 'admin_menu', function() {
+    $client = new Nias_License_Manager_Client( $url, $key, $secret );
+    $license_key = get_option( 'nlmw_my-plugin_license_key' );
+
+    if ( ! $client->nias_is_license_valid( $license_key ) ) {
+        // حذف زیرمنوها یا پنهان‌سازی صفحات تنظیمات پریمیوم
+        remove_submenu_page( 'options-general.php', 'my-plugin-premium' );
+    }
+} );
 ```
 
 ---
