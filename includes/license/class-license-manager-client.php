@@ -117,7 +117,8 @@ class Nias_License_Manager_Client {
      * @return array|false License data or false on failure | اطلاعات لایسنس یا false در صورت خطا
      */
     public function nias_validate_license( $license_key ) {
-        $endpoint = sprintf( '/licenses/validate/%s', sanitize_text_field( $license_key ) );
+        // استفاده از endpoint /licenses/{key} برای دریافت اطلاعات کامل شامل productId
+        $endpoint = sprintf( '/licenses/%s', sanitize_text_field( $license_key ) );
         $response = $this->nias_make_request( $endpoint, 'GET' );
 
         if ( $response && isset( $response['success'] ) && $response['success'] === true ) {
@@ -132,9 +133,12 @@ class Nias_License_Manager_Client {
                         $product_id,
                         implode( ', ', $allowed_ids )
                     );
-                    error_log( 'NLMW Error: ' . $this->last_error );
                     return false;
                 }
+            } elseif ( ! empty( $this->product_ids ) && ! isset( $response['data']['productId'] ) ) {
+                // productId در response نیست ولی ما انتظار داریم
+                $this->last_error = 'شناسه محصول در پاسخ سرور یافت نشد. لطفاً با پشتیبانی تماس بگیرید.';
+                return false;
             }
             
             return $response['data'];

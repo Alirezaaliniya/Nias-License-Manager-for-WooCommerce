@@ -711,17 +711,42 @@ class Nias_License_Settings_Page {
         $result = $this->license_client->nias_activate_license( $license_key, $params );
 
         if ( $result ) {
-            update_option( 'nlmw_' . $this->plugin_slug . '_license_key', $license_key );
-            update_option( 'nlmw_' . $this->plugin_slug . '_license_status', 'active' );
-            update_option( 'nlmw_' . $this->plugin_slug . '_license_data', $result );
-            update_option( 'nlmw_' . $this->plugin_slug . '_last_check', time() );
+            // بررسی نهایی: آیا لایسنس واقعاً معتبر است؟
+            $is_valid = $this->license_client->nias_is_license_valid( $license_key );
+            
+            if ( $is_valid ) {
+                // لایسنس معتبر است - ذخیره اطلاعات
+                update_option( 'nlmw_' . $this->plugin_slug . '_license_key', $license_key );
+                update_option( 'nlmw_' . $this->plugin_slug . '_license_status', 'active' );
+                update_option( 'nlmw_' . $this->plugin_slug . '_license_data', $result );
+                update_option( 'nlmw_' . $this->plugin_slug . '_last_check', time() );
 
-            add_settings_error(
-                'nias_license',
-                'license_activated',
-                'لایسنس با موفقیت فعال شد!',
-                'success'
-            );
+                add_settings_error(
+                    'nias_license',
+                    'license_activated',
+                    'لایسنس با موفقیت فعال شد!',
+                    'success'
+                );
+            } else {
+                // فعالسازی موفق بود ولی لایسنس معتبر نیست - باید غیرفعال کنیم
+                $validation_error = $this->license_client->nias_get_last_error();
+                
+                // تلاش برای غیرفعالسازی تا موجودی برگرده
+                $this->license_client->nias_deactivate_license( $license_key );
+                
+                update_option( 'nlmw_' . $this->plugin_slug . '_license_status', 'inactive' );
+                delete_option( 'nlmw_' . $this->plugin_slug . '_license_data' );
+                
+                add_settings_error(
+                    'nias_license',
+                    'activation_failed',
+                    sprintf( 
+                        'فعال‌سازی ناموفق: %s', 
+                        $validation_error ? $validation_error : 'لایسنس معتبر نیست'
+                    ),
+                    'error'
+                );
+            }
         } else {
             $error = $this->license_client->nias_get_last_error();
             $error_msg = $error ? $error : 'خطای نامشخص';
