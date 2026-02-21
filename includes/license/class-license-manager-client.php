@@ -85,8 +85,6 @@ class Nias_License_Manager_Client {
      * @var string
      */
     private $plugin_id = '';
-    private $strict_validation = false;
-    private $enforce_product_ids = false;
 
     /**
      * Constructor
@@ -123,24 +121,26 @@ class Nias_License_Manager_Client {
         $response = $this->nias_make_request( $endpoint, 'GET' );
 
         if ( $response && isset( $response['success'] ) && $response['success'] === true ) {
+            // بررسی اجباری Product ID
             if ( ! empty( $this->product_ids ) && isset( $response['data']['productId'] ) ) {
-                if ( ! in_array( $response['data']['productId'], $this->product_ids ) ) {
-                    if ( $this->enforce_product_ids ) {
-                        $this->last_error = sprintf(
-                            __( 'License is not valid for this product. Expected product ID: %s, Got: %s', 'nias-lmw' ),
-                            implode( ', ', $this->product_ids ),
-                            $response['data']['productId']
-                        );
-                        return false;
-                    } else {
-                        error_log( 'NLMW Debug: Product ID mismatch. Expected: ' . implode( ', ', $this->product_ids ) . ' Got: ' . $response['data']['productId'] );
-                    }
+                $product_id = intval( $response['data']['productId'] );
+                $allowed_ids = array_map( 'intval', $this->product_ids );
+                
+                if ( ! in_array( $product_id, $allowed_ids, true ) ) {
+                    $this->last_error = sprintf(
+                        'شناسه محصول لایسنس (%d) با شناسه‌های مجاز (%s) مطابقت ندارد',
+                        $product_id,
+                        implode( ', ', $allowed_ids )
+                    );
+                    error_log( 'NLMW Error: ' . $this->last_error );
+                    return false;
                 }
             }
             
             return $response['data'];
         }
 
+        $this->last_error = isset( $response['message'] ) ? $response['message'] : 'دریافت اطلاعات لایسنس ناموفق بود';
         return false;
     }
 
@@ -156,29 +156,73 @@ class Nias_License_Manager_Client {
      * @return array|false Activation data or false on failure | اطلاعات فعال‌سازی یا false در صورت خطا
      */
     public function nias_activate_license( $license_key, $params = array() ) {
+        // ابتدا اعتبار لایسنس را بررسی کن
+        $license_data = $this->nias_validate_license( $license_key );
+        
+        if ( ! $license_data ) {
+            // خطا در nias_validate_license تنظیم شده است
+            return false;
+        }
+        
+        // بررسی Product ID
+        if ( ! empty( $this->product_ids ) && isset( $license_data['productId'] ) ) {
+            $product_id = intval( $license_data['productId'] );
+            $allowed_ids = array_map( 'intval', $this->product_ids );
+            
+            if ( ! in_array( $product_id, $allowed_ids, true ) ) {
+                $this->last_error = sprintf(
+                    'شناسه محصول لایسنس (%d) با شناسه‌های مجاز (%s) مطابقت ندارد',
+                    $product_id,
+                    implode( ', ', $allowed_ids )
+                );
+                return false;
+            }
+        }
+        
+        // بررسی تعداد فعالسازی‌های باقیمانده
+        if ( isset( $license_data['timesActivatedMax'] ) && $license_data['timesActivatedMax'] > 0 ) {
+            $activated = isset( $license_data['timesActivated'] ) ? intval( $license_data['timesActivated'] ) : 0;
+            $max = intval( $license_data['timesActivatedMax'] );
+            
+            if ( $activated >= $max ) {
+                $this->last_error = sprintf(
+                    'تعداد فعالسازی به حداکثر مجاز رسیده است (%d از %d)',
+                    $activated,
+                    $max
+                );
+                return false;
+            }
+        }
+        
+        // بررسی تاریخ انقضا
+        if ( isset( $license_data['expiresAt'] ) && ! empty( $license_data['expiresAt'] ) ) {
+            $expiry_date = strtotime( $license_data['expiresAt'] );
+            if ( $expiry_date < time() ) {
+                $this->last_error = 'لایسنس منقضی شده است';
+                return false;
+            }
+        }
+        
+        // بررسی وضعیت قابل فروش
+        if ( ! $this->nias_is_data_sellable( $license_data ) ) {
+            $this->last_error = 'وضعیت لایسنس غیر قابل فروش است';
+            return false;
+        }
+        
+        // حالا فعالسازی را انجام بده
         $endpoint = sprintf( '/licenses/activate/%s', sanitize_text_field( $license_key ) );
         $response = $this->nias_make_request( $endpoint, 'GET', $params );
 
         if ( $response && isset( $response['success'] ) && $response['success'] === true ) {
+            // ذخیره توکن فعالسازی برای غیرفعالسازی بعدی
             if ( isset( $response['data']['activationData']['token'] ) ) {
                 update_option( 'nias_activation_token_' . md5( $license_key ), $response['data']['activationData']['token'] );
             }
-            if ( $this->enforce_product_ids && ! empty( $this->product_ids ) && isset( $response['data']['productId'] ) ) {
-                if ( ! in_array( $response['data']['productId'], $this->product_ids ) ) {
-                    $this->last_error = sprintf( 'شناسه محصول لایسنس با پلاگین سازگار نیست (انتظار: %1$s، دریافت: %2$s)', implode( ', ', $this->product_ids ), $response['data']['productId'] );
-                    return false;
-                }
-            }
-            if ( $this->strict_validation ) {
-                $validated = $this->nias_is_license_valid( $license_key );
-                if ( ! $validated ) {
-                    $this->last_error = $this->last_error ? $this->last_error : 'License invalid after activation';
-                    return false;
-                }
-            }
+            
             return $response['data'];
         }
 
+        $this->last_error = isset( $response['message'] ) ? $response['message'] : 'فعالسازی لایسنس ناموفق بود';
         return false;
     }
 
@@ -254,16 +298,17 @@ class Nias_License_Manager_Client {
         $license_data = $this->nias_validate_license( $license_key );
 
         if ( ! $license_data ) {
-            $this->last_error = 'دریافت اطلاعات لایسنس ناموفق بود';
+            // خطا در nias_validate_license تنظیم شده است
             return false;
         }
 
+        // بررسی وضعیت قابل فروش
         if ( ! $this->nias_is_data_sellable( $license_data ) ) {
             $this->last_error = 'وضعیت لایسنس غیر قابل فروش است';
             return false;
         }
 
-        // Expiry
+        // بررسی تاریخ انقضا
         if ( isset( $license_data['expiresAt'] ) && ! empty( $license_data['expiresAt'] ) ) {
             $expiry_date = strtotime( $license_data['expiresAt'] );
             if ( $expiry_date < time() ) {
@@ -272,7 +317,8 @@ class Nias_License_Manager_Client {
             }
         }
 
-        // Capacity
+        // بررسی تعداد فعالسازی (فقط هشدار، نه بلاک)
+        // چون ممکن است این سایت قبلاً فعال شده باشد
         if ( isset( $license_data['timesActivatedMax'] ) && $license_data['timesActivatedMax'] > 0 ) {
             $activated = isset( $license_data['timesActivated'] ) ? intval( $license_data['timesActivated'] ) : 0;
             $max = intval( $license_data['timesActivatedMax'] );
@@ -282,10 +328,17 @@ class Nias_License_Manager_Client {
             }
         }
 
-        // Product ID enforcement
-        if ( $this->enforce_product_ids && ! empty( $this->product_ids ) && isset( $license_data['productId'] ) ) {
-            if ( ! in_array( $license_data['productId'], $this->product_ids ) ) {
-                $this->last_error = sprintf( 'شناسه محصول لایسنس با پلاگین سازگار نیست (انتظار: %1$s، دریافت: %2$s)', implode( ', ', $this->product_ids ), $license_data['productId'] );
+        // بررسی Product ID
+        if ( ! empty( $this->product_ids ) && isset( $license_data['productId'] ) ) {
+            $product_id = intval( $license_data['productId'] );
+            $allowed_ids = array_map( 'intval', $this->product_ids );
+            
+            if ( ! in_array( $product_id, $allowed_ids, true ) ) {
+                $this->last_error = sprintf(
+                    'شناسه محصول لایسنس (%d) با شناسه‌های مجاز (%s) مطابقت ندارد',
+                    $product_id,
+                    implode( ', ', $allowed_ids )
+                );
                 return false;
             }
         }
@@ -448,12 +501,6 @@ class Nias_License_Manager_Client {
      */
     public function nias_clear_error() {
         $this->last_error = null;
-    }
-    public function nias_set_strict_validation( $strict ) {
-        $this->strict_validation = (bool) $strict;
-    }
-    public function nias_set_enforce_product_ids( $enforce ) {
-        $this->enforce_product_ids = (bool) $enforce;
     }
 
     /**

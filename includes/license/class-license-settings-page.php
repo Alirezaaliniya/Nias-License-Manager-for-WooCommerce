@@ -122,8 +122,6 @@ class Nias_License_Settings_Page {
             $cache_days,
             $this->plugin_id
         );
-        $this->license_client->nias_set_strict_validation( true );
-        $this->license_client->nias_set_enforce_product_ids( true );
     }
 
     /**
@@ -202,272 +200,294 @@ class Nias_License_Settings_Page {
         }
 
         wp_add_inline_style( 'wp-admin', '
-            .nias-license-container {
-                margin: 20px 0;
-            }
-            .nias-license-box {
-                background: #fff;
-                border: 1px solid #c3c4c7;
-                border-radius: 4px;
-                padding: 25px;
-                margin-bottom: 20px;
-                box-shadow: 0 1px 1px rgba(0,0,0,.04);
-            }
-            .nias-license-header {
-                border-bottom: 1px solid #dcdcde;
-                padding-bottom: 15px;
-                margin-bottom: 25px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-            }
-            .nias-license-header h2 {
-                margin: 0;
-                font-size: 18px;
-                font-weight: 600;
-                color: #1d2327;
-            }
-            .nias-form-row {
-                margin-bottom: 20px;
-            }
-            .nias-form-row label {
-                display: block;
-                margin-bottom: 8px;
-                font-weight: 600;
-                color: #1d2327;
-                font-size: 14px;
-            }
-            .nias-form-row input[type="text"],
-            .nias-form-row input[type="password"] {
-                width: 100%;
-                max-width: 600px;
-                padding: 8px 12px;
-                font-size: 14px;
-                line-height: 1.5;
-                border: 1px solid #8c8f94;
-                border-radius: 4px;
-                background-color: #fff;
-                transition: border-color 0.2s;
-            }
-            .nias-form-row input[type="text"]:focus,
-            .nias-form-row input[type="password"]:focus {
-                border-color: #2271b1;
-                outline: 2px solid transparent;
-                box-shadow: 0 0 0 1px #2271b1;
-            }
-            .nias-form-row small {
-                display: block;
-                margin-top: 5px;
-                color: #646970;
-                font-size: 13px;
-                line-height: 1.5;
-            }
-            .nias-status-badge {
-                display: inline-block;
-                padding: 6px 14px;
-                border-radius: 4px;
-                font-size: 12px;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-            .nias-status-active {
-                background: #d4edda;
-                color: #155724;
-                border: 1px solid #c3e6cb;
-            }
-            .nias-status-inactive {
-                background: #f8d7da;
-                color: #721c24;
-                border: 1px solid #f5c6cb;
-            }
-            .nias-status-expired {
-                background: #fff3cd;
-                color: #856404;
-                border: 1px solid #ffeaa7;
-            }
-            .nias-license-info {
-                background: #f6f7f7;
-                border: 1px solid #dcdcde;
-                border-radius: 4px;
-                padding: 20px;
-                margin: 20px 0;
-            }
-            .nias-license-info-row {
-                display: flex;
-                justify-content: space-between;
-                padding: 10px 0;
-                border-bottom: 1px solid #dcdcde;
-            }
-            .nias-license-info-row:last-child {
-                border-bottom: none;
-            }
-            .nias-license-info-label {
-                font-weight: 600;
-                color: #1d2327;
-                font-size: 14px;
-            }
-            .nias-license-info-value {
-                color: #50575e;
-                font-size: 14px;
-                text-align: right;
-            }
-            .nias-btn-group {
-                display: flex;
-                gap: 10px;
-                margin-top: 20px;
-                flex-wrap: wrap;
-            }
-            .nias-btn {
-                padding: 8px 16px;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-                text-decoration: none;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s ease;
-                min-height: 36px;
-            }
-            .nias-btn-primary {
-                background: #2271b1;
-                color: #fff;
-                border: 1px solid #2271b1;
-            }
-            .nias-btn-primary:hover {
-                background: #135e96;
-                border-color: #135e96;
-                color: #fff;
-            }
-            .nias-btn-secondary {
-                background: #fff;
-                color: #2271b1;
-                border: 1px solid #2271b1;
-            }
-            .nias-btn-secondary:hover {
-                background: #f6f7f7;
-                color: #135e96;
-                border-color: #135e96;
-            }
-            .nias-btn-danger {
-                background: #d63638;
-                color: #fff;
-                border: 1px solid #d63638;
-            }
-            .nias-btn-danger:hover {
-                background: #b32d2e;
-                border-color: #b32d2e;
-                color: #fff;
-            }
-            .nias-notice {
-                padding: 15px 20px;
-                margin: 15px 0;
-                border-left: 4px solid;
-                border-radius: 4px;
-                display: flex;
-                align-items: flex-start;
-                gap: 12px;
-            }
-            .nias-notice-icon {
-                font-size: 20px;
-                line-height: 1;
-                flex-shrink: 0;
-            }
-            .nias-notice-content {
-                flex: 1;
-            }
-            .nias-notice-success {
-                background: #edfaed;
-                border-color: #46b450;
-                color: #1e4620;
-            }
-            .nias-notice-error {
-                background: #fcf0f1;
-                border-color: #d63638;
-                color: #3c1518;
-            }
-            .nias-notice-warning {
-                background: #fcf9e8;
-                border-color: #dba617;
-                color: #614200;
-            }
-            .nias-notice-info {
-                background: #e5f5fa;
-                border-color: #72aee6;
-                color: #1d2327;
-            }
-            .nias-license-key-display {
-                font-family: "Courier New", monospace;
-                background: #f6f7f7;
-                padding: 8px 12px;
-                border-radius: 4px;
-                font-size: 13px;
-                word-break: break-all;
-            }
-            .nias-progress-bar {
-                width: 100%;
-                height: 6px;
-                background: #f0f0f1;
-                border-radius: 3px;
-                overflow: hidden;
-                margin-top: 8px;
-            }
-            .nias-progress-fill {
-                height: 100%;
-                background: linear-gradient(90deg, #2271b1 0%, #72aee6 100%);
-                transition: width 0.3s ease;
-            }
-            .nias-card-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                gap: 15px;
-                margin: 20px 0;
-            }
-            .nias-info-card {
-                background: #fff;
-                border: 1px solid #dcdcde;
-                border-radius: 4px;
-                padding: 15px;
-                text-align: center;
-            }
-            .nias-info-card-icon {
-                font-size: 32px;
-                margin-bottom: 10px;
-            }
-            .nias-info-card-title {
-                font-size: 12px;
-                color: #646970;
-                text-transform: uppercase;
-                margin-bottom: 8px;
-                font-weight: 600;
-                letter-spacing: 0.5px;
-            }
-            .nias-info-card-value {
-                font-size: 24px;
-                font-weight: 600;
-                color: #1d2327;
-            }
-            @media (max-width: 782px) {
-                .nias-license-container {
-                    max-width: 100%;
-                }
-                .nias-license-info-row {
-                    flex-direction: column;
-                    gap: 5px;
-                }
-                .nias-license-info-value {
-                    text-align: left;
-                }
-                .nias-btn-group {
-                    flex-direction: column;
-                }
-                .nias-btn {
-                    width: 100%;
-                }
-            }
+.nias-license-container {
+    max-width: 960px;
+    margin: 25px 0;
+}
+
+/* Main Card */
+.nias-license-box {
+    background: linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 15px 40px rgba(15,23,42,.08);
+    position: relative;
+    overflow: hidden;
+}
+
+.nias-license-box:before {
+    content:"";
+    position:absolute;
+    top:-80px;
+    right:-80px;
+    width:220px;
+    height:220px;
+    background: radial-gradient(circle, rgba(59,130,246,.15), transparent 60%);
+    pointer-events:none;
+}
+
+/* Header */
+.nias-license-header {
+    border-bottom: 1px solid rgba(15,23,42,.08);
+    padding-bottom: 18px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nias-license-header h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+/* Form */
+.nias-form-row {
+    margin-bottom: 22px;
+}
+
+.nias-form-row label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 13px;
+}
+
+.nias-form-row input[type="text"],
+.nias-form-row input[type="password"] {
+    width: 100%;
+    max-width: 600px;
+    padding: 12px 14px;
+    font-size: 14px;
+    border: 1px solid rgba(15,23,42,.15);
+    border-radius: 12px;
+    background-color: #fff;
+    transition: all .2s ease;
+}
+
+.nias-form-row input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59,130,246,.15);
+    outline: none;
+}
+
+.nias-form-row small {
+    display: block;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+/* Status Badge */
+.nias-status-badge {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .4px;
+}
+
+.nias-status-active {
+    background: rgba(16,185,129,.12);
+    color: #047857;
+    border: 1px solid rgba(16,185,129,.25);
+}
+
+.nias-status-inactive {
+    background: rgba(239,68,68,.12);
+    color: #b91c1c;
+    border: 1px solid rgba(239,68,68,.25);
+}
+
+.nias-status-expired {
+    background: rgba(245,158,11,.12);
+    color: #92400e;
+    border: 1px solid rgba(245,158,11,.25);
+}
+
+/* License Info */
+.nias-license-info {
+    background: rgba(248,250,252,.8);
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 14px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.nias-license-info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(15,23,42,.06);
+}
+
+.nias-license-info-row:last-child {
+    border-bottom: none;
+}
+
+.nias-license-info-label {
+    font-weight: 700;
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.nias-license-info-value {
+    font-size: 13px;
+    color: #475569;
+    text-align: right;
+}
+
+.nias-license-key-display {
+    font-family: ui-monospace, monospace;
+    background: #fff;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px dashed rgba(15,23,42,.2);
+}
+
+/* Buttons */
+.nias-btn-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+}
+
+.nias-btn {
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s ease;
+    min-height: 38px;
+}
+
+.nias-btn-primary {
+    background: linear-gradient(135deg,#3b82f6,#6366f1);
+    color: #fff;
+    border: none;
+    box-shadow: 0 10px 20px rgba(59,130,246,.25);
+}
+
+.nias-btn-primary:hover {
+    transform: translateY(-1px);
+}
+
+.nias-btn-secondary {
+    background: #fff;
+    color: #3b82f6;
+    border: 1px solid rgba(59,130,246,.4);
+}
+
+.nias-btn-danger {
+    background: linear-gradient(135deg,#ef4444,#dc2626);
+    color: #fff;
+    border: none;
+}
+
+/* Notice */
+.nias-notice {
+    padding: 14px 18px;
+    margin: 16px 0;
+    border-radius: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.nias-notice-success {
+    background: rgba(16,185,129,.10);
+    border-left: 4px solid #10b981;
+}
+
+.nias-notice-error {
+    background: rgba(239,68,68,.10);
+    border-left: 4px solid #ef4444;
+}
+
+.nias-notice-warning {
+    background: rgba(245,158,11,.10);
+    border-left: 4px solid #f59e0b;
+}
+
+.nias-notice-info {
+    background: rgba(59,130,246,.10);
+    border-left: 4px solid #3b82f6;
+}
+
+/* Progress */
+.nias-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(15,23,42,.08);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.nias-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg,#3b82f6,#6366f1);
+}
+
+/* Cards */
+.nias-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+    gap: 16px;
+    margin: 22px 0;
+}
+
+.nias-info-card {
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.08);
+    border-radius: 16px;
+    padding: 18px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(15,23,42,.06);
+}
+
+.nias-info-card-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+.nias-info-card-title {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+
+.nias-info-card-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+    .nias-license-info-row {
+        flex-direction: column;
+        gap: 6px;
+    }
+    .nias-license-info-value {
+        text-align: left;
+    }
+    .nias-btn-group {
+        flex-direction: column;
+    }
+    .nias-btn {
+        width: 100%;
+    }
+}
         ' );
     }
 
