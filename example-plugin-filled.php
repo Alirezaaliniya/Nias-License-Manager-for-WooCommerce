@@ -1,13 +1,13 @@
 <?php
 /**
- * Plugin Name: افزونه نمونه من
- * Plugin URI: https://yoursite.com/my-plugin
- * Description: افزونه نمونه برای نمایش یکپارچگی با سیستم مدیریت لایسنس NLMW
+ * Plugin Name: سیستم رزرو هتل
+ * Plugin URI: https://myhotel.ir/booking-plugin
+ * Description: افزونه مدیریت رزرو هتل با سیستم لایسنس NLMW
  * Version: 1.0.0
- * Author: نام شما
- * Author URI: https://yoursite.com
+ * Author: شرکت نرم‌افزاری من
+ * Author URI: https://mycompany.ir
  * License: GPL-2.0+
- * Text Domain: my-plugin
+ * Text Domain: hotel-booking
  * Domain Path: /languages
  */
 
@@ -67,38 +67,48 @@ if ( ! defined( 'ABSPATH' ) ) {
 // 1️⃣ تنظیمات افزونه
 $PLUGIN_CONFIG = array(
     // پیشوند یکتا - این مقدار در همه جا استفاده می‌شود (ثابت‌ها، دیتابیس، کرون‌ها)
-    // فقط از حروف کوچک انگلیسی و خط تیره استفاده کنید
-    // مثال: 'my-shop', 'booking-plugin', 'crm-system'
-    'prefix'        => 'my-plugin',
+    // در این مثال: 'hotel-booking' به عنوان پیشوند استفاده شده
+    'prefix'        => 'hotel-booking',
     
     // نام نمایشی افزونه - این نام در صفحات مدیریت نمایش داده می‌شود
-    'name'          => 'افزونه نمونه من',
+    'name'          => 'سیستم رزرو هتل',
     
     // دامنه متنی برای ترجمه‌ها - معمولاً همان prefix
-    'text_domain'   => 'my-plugin',
+    'text_domain'   => 'hotel-booking',
 );
 
 // 2️⃣ تنظیمات فروشگاه ووکامرس
 $STORE_CONFIG = array(
     // آدرس کامل فروشگاه (بدون / در انتها)
-    'url'              => 'https://example.com',
+    // مثال تستی: فرض کنید فروشگاه شما در آدرس زیر است
+    'url'              => 'https://shop.myhotel.ir',
     
     // کلید مصرف‌کننده API (Consumer Key) - از تنظیمات ووکامرس دریافت کنید
-    'consumer_key'     => 'ck_test1234567890abcdef',
+    // مسیر دریافت: ووکامرس > تنظیمات > پیشرفته > REST API > افزودن کلید
+    // این یک کلید تستی است - شما باید کلید واقعی خود را جایگزین کنید
+    'consumer_key'     => 'ck_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8',
     
     // رمز مصرف‌کننده API (Consumer Secret) - از تنظیمات ووکامرس دریافت کنید
-    'consumer_secret'  => 'cs_test1234567890abcdef',
+    // این یک رمز تستی است - شما باید رمز واقعی خود را جایگزین کنید
+    'consumer_secret'  => 'cs_z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2',
 );
 
 // 3️⃣ تنظیمات لایسنس
 $LICENSE_CONFIG = array(
     // شناسه محصولات معتبر در ووکامرس (Product IDs)
-    // مثال: array( 123, 456, 789 )
-    // برای قبول همه محصولات: array() بگذارید
-    'product_ids'  => array( 5735, 5736, 5737 ),
+    // این شناسه‌ها را از صفحه ویرایش محصول در ووکامرس دریافت کنید
+    // 
+    // در این مثال تستی:
+    // - محصول 1234: "لایسنس سالانه سیستم رزرو هتل"
+    // - محصول 5678: "لایسنس ماهانه سیستم رزرو هتل"
+    // - محصول 9012: "لایسنس مادام‌العمر سیستم رزرو هتل"
+    // 
+    // فقط کاربرانی که یکی از این سه محصول را خریداری کرده باشند، لایسنس معتبر دارند
+    'product_ids'  => array( 1234, 5678, 9012 ),
     
     // تعداد روزهای کش بررسی لایسنس (بین 3 تا 7 روز توصیه می‌شود)
-    'cache_days'   => 5,
+    // در این مثال: هر 7 روز یکبار لایسنس از سرور بررسی می‌شود
+    'cache_days'   => 7,
 );
 
 /**
@@ -111,10 +121,15 @@ $LICENSE_CONFIG = array(
 // استخراج پیشوند از تنظیمات
 $PREFIX = $PLUGIN_CONFIG['prefix'];
 
-// تبدیل پیشوند به حروف بزرگ برای ثابت‌ها (my-plugin => MY_PLUGIN)
+// تبدیل پیشوند به حروف بزرگ برای ثابت‌ها (hotel-booking => HOTEL_BOOKING)
 $CONST_PREFIX = strtoupper( str_replace( '-', '_', $PREFIX ) );
 
 // تعریف ثابت‌های افزونه با پیشوند داینامیک
+// در این مثال ثابت‌های زیر ایجاد می‌شوند:
+// - HOTEL_BOOKING_VERSION
+// - HOTEL_BOOKING_PATH
+// - HOTEL_BOOKING_URL
+// - HOTEL_BOOKING_BASENAME
 define( $CONST_PREFIX . '_VERSION', '1.0.0' );
 define( $CONST_PREFIX . '_PATH', plugin_dir_path( __FILE__ ) );
 define( $CONST_PREFIX . '_URL', plugin_dir_url( __FILE__ ) );
@@ -122,6 +137,7 @@ define( $CONST_PREFIX . '_BASENAME', plugin_basename( __FILE__ ) );
 
 // متغیر سراسری برای ذخیره وضعیت لایسنس
 // نام متغیر بر اساس پیشوند ساخته می‌شود
+// در این مثال: $GLOBALS['hotel-booking_license_valid']
 $GLOBALS[ $PREFIX . '_license_valid' ] = false;
 
 // ================================================================
@@ -158,7 +174,13 @@ add_action( 'plugins_loaded', function() {
      * 1️⃣ راه‌اندازی صفحه تنظیمات لایسنس
      * ────────────────────────────────────────────────────────────
      * این کلاس صفحه تنظیمات را در پنل مدیریت ایجاد می‌کند
-     * مسیر: تنظیمات > لایسنس [نام افزونه]
+     * مسیر: تنظیمات > لایسنس سیستم رزرو هتل
+     * 
+     * پارامترها:
+     * - 'سیستم رزرو هتل': نام نمایشی در صفحه تنظیمات
+     * - 'hotel-booking': شناسه یکتا برای ذخیره در دیتابیس (nlmw_hotel-booking_license_key)
+     * - 'hotel-booking': شناسه افزونه برای جلوگیری از تداخل
+     * - $API_CONFIG: شامل url, consumer_key, consumer_secret, product_ids
      */
     new Nias_License_Settings_Page(
         $plugin_name,      // نام نمایشی افزونه
@@ -172,7 +194,14 @@ add_action( 'plugins_loaded', function() {
      * 2️⃣ راه‌اندازی بررسی خودکار لایسنس (Cron Job)
      * ────────────────────────────────────────────────────────────
      * این کلاس هر روز یکبار لایسنس را بررسی می‌کند
-     * زمان بررسی: هر 24 ساعت (DAY_IN_SECONDS)
+     * زمان بررسی: هر 24 ساعت (DAY_IN_SECONDS = 86400 ثانیه)
+     * 
+     * نام کرون ایجاد شده: nlmw_hotel-booking_license_check
+     * 
+     * پارامترها:
+     * - 'hotel-booking': شناسه یکتا برای نام کرون
+     * - DAY_IN_SECONDS: فاصله زمانی بررسی (24 ساعت)
+     * - 'hotel-booking': شناسه افزونه
      */
     new Nias_License_Cron_Handler(
         $plugin_slug,      // شناسه یکتا برای نام کرون
@@ -186,6 +215,14 @@ add_action( 'plugins_loaded', function() {
      * ────────────────────────────────────────────────────────────
      * این کلاس با فروشگاه ووکامرس ارتباط برقرار می‌کند
      * و اعتبار لایسنس را بررسی می‌کند
+     * 
+     * پارامترها:
+     * - 'https://shop.myhotel.ir': آدرس فروشگاه ووکامرس
+     * - 'ck_a1b2c3d4...': کلید API برای احراز هویت
+     * - 'cs_z9y8x7w6...': رمز API برای احراز هویت
+     * - array(1234, 5678, 9012): فقط این محصولات لایسنس معتبر هستند
+     * - 7: نتیجه بررسی به مدت 7 روز کش می‌شود
+     * - 'hotel-booking': شناسه افزونه
      */
     $license_client = new Nias_License_Manager_Client(
         $STORE_CONFIG['url'],              // آدرس فروشگاه
@@ -201,6 +238,13 @@ add_action( 'plugins_loaded', function() {
      * 4️⃣ بررسی وضعیت لایسنس
      * ────────────────────────────────────────────────────────────
      * کلید لایسنس از دیتابیس خوانده شده و اعتبار آن بررسی می‌شود
+     * 
+     * کلید دیتابیس: nlmw_hotel-booking_license_key
+     * 
+     * سناریوهای مختلف:
+     * 1. کاربر لایسنس وارد نکرده: $license_key خالی است
+     * 2. کاربر لایسنس وارد کرده اما نامعتبر است: nias_is_license_valid() برمی‌گرداند false
+     * 3. کاربر لایسنس معتبر دارد: nias_is_license_valid() برمی‌گرداند true
      */
     $license_key = get_option( 'nlmw_' . $plugin_slug . '_license_key', '' );
     
@@ -209,7 +253,8 @@ add_action( 'plugins_loaded', function() {
         $GLOBALS[ $PREFIX . '_license_valid' ] = true;
         
         // اینجا می‌توانید ویژگی‌های افزونه را فعال کنید
-        // مثال: add_action( 'init', 'my_plugin_init_features' );
+        // مثال: فعال‌سازی قابلیت رزرو آنلاین
+        // add_action( 'init', 'hotel_booking_init_features' );
         
     } else {
         // ❌ لایسنس نامعتبر یا وارد نشده است
@@ -238,6 +283,10 @@ add_action( 'plugins_loaded', function() {
      * 5️⃣ بارگذاری فایل‌های ترجمه
      * ────────────────────────────────────────────────────────────
      * فایل‌های ترجمه از پوشه /languages بارگذاری می‌شوند
+     * 
+     * فایل‌های مورد نیاز:
+     * - languages/hotel-booking-fa_IR.mo
+     * - languages/hotel-booking-fa_IR.po
      */
     $plugin_basename = constant( $CONST_PREFIX . '_BASENAME' );
     load_plugin_textdomain(
@@ -253,6 +302,10 @@ add_action( 'plugins_loaded', function() {
  * ================================================================
  * این تابع هنگام فعال‌سازی افزونه اجرا می‌شود
  * برای تنظیمات اولیه و ایجاد جداول دیتابیس استفاده می‌شود
+ * 
+ * در این مثال:
+ * - زمان فعال‌سازی در hotel-booking_activation_time ذخیره می‌شود
+ * - نسخه افزونه در hotel-booking_version ذخیره می‌شود
  */
 register_activation_hook( __FILE__, function() {
     global $PREFIX, $CONST_PREFIX;
@@ -282,6 +335,9 @@ register_activation_hook( __FILE__, function() {
  * ================================================================
  * این تابع هنگام غیرفعال‌سازی افزونه اجرا می‌شود
  * برای پاکسازی کرون‌ها و تنظیمات موقت استفاده می‌شود
+ * 
+ * در این مثال:
+ * - کرون nlmw_hotel-booking_license_check پاک می‌شود
  */
 register_deactivation_hook( __FILE__, function() {
     global $PREFIX;
@@ -311,11 +367,14 @@ register_deactivation_hook( __FILE__, function() {
  * 
  * @return bool true اگر لایسنس معتبر باشد، در غیر این صورت false
  * 
- * مثال استفاده:
+ * مثال استفاده در کد افزونه:
+ * 
  * if ( is_license_valid() ) {
- *     // ویژگی پریمیوم را فعال کن
+ *     // نمایش فرم رزرو آنلاین
+ *     show_booking_form();
  * } else {
- *     // پیام محدودیت نمایش بده
+ *     // نمایش پیام محدودیت
+ *     echo 'برای استفاده از این قابلیت، لطفاً لایسنس خود را فعال کنید.';
  * }
  */
 function is_license_valid() {
@@ -327,6 +386,10 @@ function is_license_valid() {
  * دریافت مسیر افزونه
  * 
  * @return string مسیر کامل پوشه افزونه
+ * 
+ * مثال استفاده:
+ * $template_path = get_plugin_path() . 'templates/booking-form.php';
+ * include $template_path;
  */
 function get_plugin_path() {
     global $CONST_PREFIX;
@@ -337,6 +400,10 @@ function get_plugin_path() {
  * دریافت URL افزونه
  * 
  * @return string آدرس URL پوشه افزونه
+ * 
+ * مثال استفاده:
+ * $css_url = get_plugin_url() . 'assets/css/style.css';
+ * wp_enqueue_style( 'hotel-booking-style', $css_url );
  */
 function get_plugin_url() {
     global $CONST_PREFIX;
@@ -347,6 +414,10 @@ function get_plugin_url() {
  * دریافت نسخه افزونه
  * 
  * @return string شماره نسخه
+ * 
+ * مثال استفاده:
+ * $version = get_plugin_version();
+ * wp_enqueue_script( 'hotel-booking-js', get_plugin_url() . 'assets/js/script.js', array(), $version );
  */
 function get_plugin_version() {
     global $CONST_PREFIX;
