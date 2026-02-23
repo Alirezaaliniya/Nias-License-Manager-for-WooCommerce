@@ -103,12 +103,19 @@ $LICENSE_CONFIG = array(
 
 برای بررسی وضعیت لایسنس در کد افزونه:
 
+
 ```php
-if ( is_license_valid() ) {
-    // لایسنس معتبر - نمایش ویژگی پریمیوم
-} else {
-    // لایسنس نامعتبر - نمایش محدودیت
+// روش 1: استفاده از متغیر
+global $nias_login_license_valid;
+if (!$nias_login_license_valid) {
+    // لایسنس فعال نیست
 }
+
+// روش 2: استفاده از تابع (بهتر)
+if (!nias_is_license_valid()) {
+    // لایسنس فعال نیست
+}
+
 ```
 
 ---
