@@ -312,13 +312,13 @@ register_deactivation_hook( __FILE__, function() {
  * @return bool true اگر لایسنس معتبر باشد، در غیر این صورت false
  * 
  * مثال استفاده:
- * if ( is_license_valid() ) {
+ * if ( license_valid() ) {
  *     // ویژگی پریمیوم را فعال کن
  * } else {
  *     // پیام محدودیت نمایش بده
  * }
  */
-function is_license_valid() {
+function license_valid() {
     global $PREFIX;
     return isset( $GLOBALS[ $PREFIX . '_license_valid' ] ) && $GLOBALS[ $PREFIX . '_license_valid' ] === true;
 }
